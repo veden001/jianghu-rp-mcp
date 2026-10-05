@@ -1,0 +1,79 @@
+[
+  {
+    "id": "fast_boots",
+    "name": "快行靴",
+    "description": "使用后，下一次移动额外前进2格。",
+    "consumable": true,
+    "effect": {
+      "next_move_bonus": 2
+    }
+  },
+  {
+    "id": "lucky_coin",
+    "name": "幸运铜钱",
+    "description": "使用后，下一次掷骰可在看到结果后重掷一次。",
+    "consumable": true,
+    "effect": {
+      "enable_reroll": true
+    }
+  },
+  {
+    "id": "smoke_pellet",
+    "name": "烟丸",
+    "description": "使用后，下一次不利轻事件自动取消。",
+    "consumable": true,
+    "effect": {
+      "cancel_next_adverse": true
+    }
+  },
+  {
+    "id": "stimulant",
+    "name": "提神丸",
+    "description": "使用后，下一次掷骰结果+1，最高仍按移动结果结算。",
+    "consumable": true,
+    "effect": {
+      "next_roll_bonus": 1
+    }
+  },
+  {
+    "id": "antidote",
+    "name": "解毒散",
+    "description": "保留备用。可在未来章节抵消一次中毒类轻事件。",
+    "consumable": true,
+    "effect": {
+      "antidote": 1
+    }
+  },
+  {
+    "id": "fake_pass",
+    "name": "假路引",
+    "description": "一份做得像模像样的假路引。主要用于角色扮演场景，不提供自动成功。",
+    "consumable": false,
+    "effect": {},
+    "interaction": {
+      "giftable": true
+    }
+  },
+  {
+    "id": "spare_die",
+    "name": "备用骰",
+    "description": "使用后，下一次掷骰可在看到结果后重掷一次。",
+    "consumable": true,
+    "effect": {
+      "enable_reroll": true
+    }
+  },
+  {
+    "id": "iron_dagger",
+    "name": "精铁短刀",
+    "description": "一柄结实耐用的短刀。没有固定数值加成，但可以在场景中使用。",
+    "consumable": false,
+    "effect": {},
+    "interaction": {
+      "giftable": true,
+      "usable": true,
+      "use_target": "self",
+      "use_text": "你把精铁短刀拿在手里。它不会自动解决任何麻烦，但至少看起来很像那么回事。"
+    }
+  }
+]

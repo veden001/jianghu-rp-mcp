@@ -1,0 +1,16 @@
+[
+  {
+    "id": "saibei_horse_bell",
+    "name": "塞北马铃",
+    "description": "第二章率先抵达终点获得的纪念收藏品。一枚小小的铜马铃，摇起来叮当作响，无属性。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "铜马铃叮当响了两声。没有任何事情发生，但很好听。"
+    },
+    "effect": {}
+  }
+]

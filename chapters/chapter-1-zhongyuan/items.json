@@ -1,0 +1,207 @@
+[
+  {
+    "id": "wine",
+    "name": "一壶酒",
+    "description": "一壶普通的酒。没有固定机械效果，但可以在场景中使用。",
+    "consumable": false,
+    "effect": {},
+    "interaction": {
+      "giftable": true,
+      "usable": true,
+      "use_target": "either",
+      "use_text": "酒壶一开，江湖气就出来了。怎么喝、和谁喝，由角色自己决定。"
+    }
+  },
+  {
+    "id": "fake_rubbing",
+    "name": "假铭文拓片",
+    "description": "背面印着洛阳第一烧鸡的广告。",
+    "consumable": false,
+    "effect": {},
+    "interaction": {
+      "giftable": true
+    }
+  },
+  {
+    "id": "peony_token",
+    "name": "洛阳牡丹花牌",
+    "description": "第一位完成中原地图的玩家获得。无属性、无加成、无隐藏用途。",
+    "consumable": false,
+    "collectible": true,
+    "effect": {},
+    "interaction": {
+      "giftable": true
+    }
+  },
+  {
+    "id": "shangguan_poems",
+    "name": "上官昭容诗集",
+    "description": "一本上官昭容诗集。使用时可指定1至6之间的一个点数，作为下一次d6的基础点数。",
+    "consumable": true,
+    "effect": {
+      "choose_next_roll": true
+    }
+  },
+  {
+    "id": "nuo_mask",
+    "name": "傩面",
+    "description": "收藏品。戴上很威风。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "wearable": true,
+      "giftable": true,
+      "wear_text": "傩面一戴，威风得很。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "gold_buyao",
+    "name": "金步摇",
+    "description": "收藏品。漂亮的饰品，可以自己用，也可以当作礼物送给女孩子。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "wearable": true,
+      "giftable": true,
+      "wear_text": "金步摇在发间轻轻晃着，确实漂亮。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "goujian_bile",
+    "name": "勾践尝过的胆",
+    "description": "传说级收藏品。据说是勾践尝过的胆，舔一口能让人戴上痛苦面具。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你不信邪，舔了一口。\n\n呕。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "self",
+      "use_text": "你又不信邪，舔了一口。\n\n呕。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "damp_maltesers",
+    "name": "一袋受潮的麦丽素",
+    "description": "收藏品。神秘的黑棕色小丸子。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "哎。好吃。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "哎。好吃。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "pig_spray",
+    "name": "变猪喷雾",
+    "description": "收藏品。天庭养猪仙女研制出的神秘药水，可以把你的搭档变成超级可爱的粉色迷你猪，时效为半个时辰。双方同时使用时，亲密度↑。额外花费3两，可传信至天庭定制其他动物特别款。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "partner",
+      "customizable": true,
+      "customize_cost": 3
+    },
+    "effect": {}
+  },
+  {
+    "id": "mystery_booklet",
+    "name": "神秘小册子",
+    "description": "收藏品。摊主对你挤眉弄眼，疯狂暗示。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "翻开之后你才发现这是一本完完全全的废话大全：水清则浅，水绿则深，水黑则渊，鳝大成蛇，蛇大成蟒，蟒大成蛟，蛟大成龙，龙大成王，王中王，火腿肠，一节更比六节强，果冻我选喜某郎，喜某郎，不一般，马可波罗是瓷砖，能贴墙，能贴地，大力才能出奇迹……\n\n好气。气死了。\n\n你还以为是那种书。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "self",
+      "use_text": "你又翻了一遍。\n\n还是那些废话。\n\n更气了。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "m_fries",
+    "name": "m记薯条",
+    "description": "收藏品。你进入了k记对门的食肆。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "太好吃了，天呐，太好吃了。再来一份！",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "太好吃了，天呐，太好吃了。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "k_icecream",
+    "name": "k记甜筒",
+    "description": "收藏品。你进入了m记对门的食肆。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "入口细腻，奶香醇厚……再来一个！",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "入口细腻，奶香醇厚……"
+    },
+    "effect": {}
+  },
+  {
+    "id": "prepared_dish",
+    "name": "预制菜",
+    "description": "收藏品。摆盘精致、毫无锅气的食物。这里不是农家乐吗！？怎么会有预制菜啊！？",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "摆盘还是那么精致。锅气还是一点没有。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "iron_lotus_hairpin",
+    "name": "铁莲花簪",
+    "description": "收藏品。铁匠家的小孩练手之作，用废剑料打的花簪，粗糙但结实，可以别头发也可以捅人。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "铁匠说这是她闺女的大作。你觉得挺好看，古拙之中透出特别的心意。",
+    "interaction": {
+      "usable": true,
+      "wearable": true,
+      "giftable": true,
+      "use_target": "self",
+      "use_text": "铁莲花簪握在手里沉甸甸的。可以别头发，也可以捅人。至于怎么用，由你决定。",
+      "wear_text": "粗糙的铁莲花簪别在发间，古拙得很特别。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "station_braised_egg",
+    "name": "驿站食堂卤蛋",
+    "description": "收藏品。食堂的大娘自己卤的。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "壳都没剥完就咬了一口。\n\n烫。\n\n但是好吃。\n\n大娘在后面喊你慢点吃。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "还是香。就是别再烫着。"
+    },
+    "effect": {}
+  }
+]
