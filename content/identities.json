@@ -1,0 +1,99 @@
+[
+  {
+    "id": "imperial",
+    "name": "帝室成员（亲王/长公主）",
+    "special": false,
+    "description": "权力顶峰之人，白龙鱼服行走江湖。"
+  },
+  {
+    "id": "official_family",
+    "name": "官宦人家（公子/千金）",
+    "special": false,
+    "description": "富贵风流的大户人家幼子，生来不慕荣华，喜欢民间自在。"
+  },
+  {
+    "id": "commoner",
+    "name": "平民",
+    "special": false,
+    "description": "普通的人家出身。没学过什么绝世武功，也没有显赫门第，但很会过日子。"
+  },
+  {
+    "id": "wandering_doctor",
+    "name": "江湖游医",
+    "special": false,
+    "description": "从不挑剔患者，大小毛病什么都看，一身本事就是行走江湖的底气。"
+  },
+  {
+    "id": "escort",
+    "name": "镖师",
+    "special": false,
+    "description": "出身中原最大的镖局，年纪轻轻的老江湖。"
+  },
+  {
+    "id": "merchant",
+    "name": "商贾",
+    "special": false,
+    "description": "抓周抱着算盘珠子不撒手，家中生意遍布天下，笃信世间的麻烦都可以用合适的价钱解决。"
+  },
+  {
+    "id": "swindler",
+    "name": "江湖骗子",
+    "special": false,
+    "description": "见人说人话，见鬼说鬼话，走街串行，行走江湖，无往不利。"
+  },
+  {
+    "id": "assassin",
+    "name": "刺客",
+    "special": false,
+    "description": "刚从前任主人控制下逃脱不久，正在追逐、享受来之不易的自由。"
+  },
+  {
+    "id": "fortune_teller",
+    "name": "算命大师",
+    "special": false,
+    "description": "有时候你也分不清自己和江湖骗子有什么区别。"
+  },
+  {
+    "id": "coroner",
+    "name": "仵作",
+    "special": false,
+    "description": "常年与死人打交道，见过的秘密比活人说出口的更多。"
+  },
+  {
+    "id": "young_wanderer",
+    "name": "少年游侠",
+    "special": false,
+    "description": "一人一剑初入江湖，路见不平一声吼。"
+  },
+  {
+    "id": "miao_gushu",
+    "name": "南疆蛊师",
+    "special": false,
+    "description": "身上缀满银饰的苗疆来客，精擅于蛊毒，传说能和草木鱼虫沟通。"
+  },
+  {
+    "id": "amnesiac_swordsman",
+    "name": "失忆的前任天下第一剑客",
+    "special": true,
+    "description": "你失忆了。但是你的掌心有厚厚的茧，手中有天下最快的剑。"
+  },
+  {
+    "id": "hidden_sect_heir",
+    "name": "隐世宗门的首席弟子",
+    "special": true,
+    "description": "从隐秘的深山来到人间市井，你有些水土不服。"
+  },
+  {
+    "id": "yaoxie",
+    "name": "妖邪",
+    "special": true,
+    "description": "山鬼、精怪、邪祟……你也不知道该如何定义自己。"
+  },
+  {
+    "id": "immortal",
+    "name": "千岁仙人",
+    "special": true,
+    "description": "朝游北海暮苍梧的修道飞升之人。不可轻易在凡俗面前展露身份，可自选一个非特殊身份作为伪装。",
+    "requires_disguise": true
+  }
+]

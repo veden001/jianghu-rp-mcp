@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jianghu-rp": {
+      "command": "npx",
+      "args": ["tsx", "/ABSOLUTE/PATH/TO/jianghu-rp-mcp/src/index.ts"]
+    }
+  }
+}
