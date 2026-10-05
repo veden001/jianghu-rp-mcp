@@ -1,6 +1,6 @@
 {
   "name": "jianghu-rp-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "A chat-native two-player wuxia roleplay board game powered by MCP.",

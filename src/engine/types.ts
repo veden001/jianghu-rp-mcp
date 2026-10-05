@@ -56,6 +56,7 @@ export interface NarrativeCell extends BaseCell {
   type: 'landmark' | 'rhythm';
   text: string;
   effect?: MechanicalEffect;
+  interaction_hook?: string;
 }
 
 export interface LightCell extends BaseCell {
@@ -70,6 +71,7 @@ export interface SceneCell extends BaseCell {
   intro: string;
   goal: string;
   resolution: string;
+  scene_mode?: 'core' | 'optional';
 }
 
 export interface ShopCell extends BaseCell {
@@ -148,5 +150,6 @@ export interface GameState {
   pendingRoll?: PendingRoll;
   firstFinisher?: PlayerId;
   setupPendingDisguises: PlayerId[];
+  resolvedScenes: number[];
   log: GameLogEntry[];
 }

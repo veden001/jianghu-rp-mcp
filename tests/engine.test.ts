@@ -21,14 +21,25 @@ test('roleplay scene pauses the board until fixed resolution is completed', asyn
     aiIdentityId: 'assassin',
   });
 
-  const landed = await roll('test_scene', () => 2); // 1 -> 3
+  const landed = await roll('test_scene', () => 6); // would be 1 -> 7, but core scene at 3 intercepts
   assert.equal(landed.state.status, 'awaiting_scene');
   assert.equal(landed.state.players.human.position, 3);
+  assert.match(landed.text, /核心场景/);
 
   const resolved = await gameAction({ sessionId: 'test_scene', action: 'complete_scene' });
   assert.equal(resolved.state.status, 'active');
   assert.equal(resolved.state.currentPlayer, 'ai');
+  assert.deepEqual(resolved.state.resolvedScenes, [3]);
   assert.match(resolved.text, /固定结算/);
+
+  const next = await roll('test_scene', () => 6); // AI skips resolved scene 3, then stops at core scene 6
+  assert.equal(next.state.status, 'awaiting_scene');
+  assert.equal(next.state.players.ai.position, 6);
+
+  await gameAction({ sessionId: 'test_scene', action: 'complete_scene' });
+  const optionalSkipped = await roll('test_scene', () => 6); // human 3 -> 9; optional scene 8 does not intercept
+  assert.equal(optionalSkipped.state.players.human.position, 9);
+  assert.equal(optionalSkipped.state.status, 'awaiting_shop');
 });
 
 test('function cell deducts money and adds the selected item', async () => {
@@ -40,7 +51,12 @@ test('function cell deducts money and adds the selected item', async () => {
     aiIdentityId: 'escort',
   });
 
-  const landed = await roll('test_shop', () => 3); // 1 -> 4
+  const prepared = await getGameState('test_shop');
+  prepared.players.human.position = 3;
+  prepared.resolvedScenes = [3];
+  await saveState(prepared);
+
+  const landed = await roll('test_shop', () => 1); // 3 -> 4
   assert.equal(landed.state.status, 'awaiting_shop');
 
   const bought = await gameAction({
@@ -48,7 +64,7 @@ test('function cell deducts money and adds the selected item', async () => {
     action: 'buy',
     optionId: 'buy_fast_boots',
   });
-  assert.equal(bought.state.players.human.money, 10);
+  assert.equal(bought.state.players.human.money, 18);
   assert.equal(bought.state.players.human.inventory.find((x) => x.itemId === 'fast_boots')?.count, 1);
 });
 

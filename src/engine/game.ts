@@ -15,7 +15,7 @@ import type {
   ShopCell,
 } from './types.js';
 
-const GAME_VERSION = '0.1.0';
+const GAME_VERSION = '0.1.1';
 
 type Rng = (min: number, maxExclusive: number) => number;
 const defaultRng: Rng = (min, maxExclusive) => randomInt(min, maxExclusive);
@@ -49,6 +49,12 @@ export interface ActionInput {
 function appendLog(state: GameState, message: string): void {
   state.log.push({ at: new Date().toISOString(), message });
   if (state.log.length > 80) state.log.splice(0, state.log.length - 80);
+}
+
+function normalizeLoadedState(state: GameState): GameState {
+  // v0.1.0 saves predate scene-resolution tracking.
+  if (!Array.isArray(state.resolvedScenes)) state.resolvedScenes = [];
+  return state;
 }
 
 function findIdentity(identities: Identity[], id: string): Identity {
@@ -118,6 +124,25 @@ function getCell(chapter: ChapterDefinition, position: number): Cell {
   return cell;
 }
 
+function firstUnresolvedCoreSceneBetween(
+  state: GameState,
+  chapter: ChapterDefinition,
+  from: number,
+  destination: number,
+): number | undefined {
+  return chapter.cells
+    .filter(
+      (cell) =>
+        cell.type === 'scene' &&
+        cell.scene_mode === 'core' &&
+        cell.position > from &&
+        cell.position <= destination &&
+        !state.resolvedScenes.includes(cell.position),
+    )
+    .map((cell) => cell.position)
+    .sort((a, b) => a - b)[0];
+}
+
 function advanceTurn(state: GameState, from: PlayerId): void {
   const other = otherPlayer(from);
   if (!state.players[other].finished) state.currentPlayer = other;
@@ -184,6 +209,11 @@ async function resolveLanding(
   const out: string[] = [`落在第${cell.position}格【${cell.title}】。`];
 
   if (cell.type === 'scene') {
+    if (state.resolvedScenes.includes(cell.position)) {
+      out.push('这个江湖场景已经在本章发生过，本次不重复触发。');
+      advanceTurn(state, playerId);
+      return out;
+    }
     state.status = 'awaiting_scene';
     state.pendingScene = { cellPosition: cell.position, triggerPlayer: playerId };
     out.push(cell.intro, `【互动目标】${cell.goal}`);
@@ -222,6 +252,9 @@ async function resolveLanding(
 
   if (cell.type === 'rhythm' || cell.type === 'landmark') {
     out.push(cell.text);
+    if (cell.type === 'rhythm' && cell.interaction_hook) {
+      out.push(`【互动钩子｜可选】${cell.interaction_hook}`);
+    }
     const effect = cell.type === 'rhythm' ? cell.effect : undefined;
     const { immediateMove, notes } = applyEffect(player, effect);
     out.push(...notes);
@@ -257,9 +290,13 @@ async function movePlayer(
 ): Promise<string[]> {
   const player = state.players[playerId];
   const from = player.position;
-  const destination = Math.min(chapter.length, from + Math.max(0, spaces));
+  const rolledDestination = Math.min(chapter.length, from + Math.max(0, spaces));
+  const coreStop = firstUnresolvedCoreSceneBetween(state, chapter, from, rolledDestination);
+  const destination = coreStop ?? rolledDestination;
   player.position = destination;
-  const out = [`${reason}：${from} → ${destination}。`];
+  const out = [
+    `${reason}：${from} → ${destination}。${coreStop ? ' 途经尚未触发的核心场景，强制停留。' : ''}`,
+  ];
 
   if (destination >= chapter.length) {
     player.finished = true;
@@ -310,6 +347,7 @@ export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promi
       ai: makePlayer('ai', input.aiName ?? 'AI玩家', aiIdentity),
     },
     setupPendingDisguises,
+    resolvedScenes: [],
     log: [],
   };
   appendLog(state, `新游戏开始：${chapter.name}`);
@@ -332,11 +370,11 @@ export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promi
 }
 
 export async function getGameState(sessionId: string): Promise<GameState> {
-  return loadState(sessionId);
+  return normalizeLoadedState(await loadState(sessionId));
 }
 
 export async function roll(sessionId: string, rng: Rng = defaultRng): Promise<{ state: GameState; text: string }> {
-  const state = await loadState(sessionId);
+  const state = normalizeLoadedState(await loadState(sessionId));
   if (state.status !== 'active') throw new Error(`Cannot roll while game status is ${state.status}.`);
   const playerId = state.currentPlayer;
   const player = state.players[playerId];
@@ -396,7 +434,7 @@ async function resolvePendingRoll(state: GameState, reroll: boolean, rng: Rng): 
 }
 
 export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Promise<{ state: GameState; text: string }> {
-  const state = await loadState(input.sessionId);
+  const state = normalizeLoadedState(await loadState(input.sessionId));
   const identities = await loadIdentities();
   const items = await loadItems();
   const chapter = await loadChapter(state.chapterId);
@@ -422,6 +460,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     const cell = getCell(chapter, pending.cellPosition);
     if (cell.type !== 'scene' && cell.type !== 'finale') throw new Error('Pending cell is not a scene.');
     text = `【固定结算】${cell.resolution}`;
+    if (!state.resolvedScenes.includes(cell.position)) state.resolvedScenes.push(cell.position);
     state.pendingScene = undefined;
     if (cell.type === 'finale') {
       state.status = 'chapter_complete';

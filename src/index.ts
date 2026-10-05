@@ -26,7 +26,7 @@ function asText(text: string, structuredContent?: Record<string, unknown>) {
 }
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: 'jianghu-rp-mcp', version: '0.1.0' });
+  const server = new McpServer({ name: 'jianghu-rp-mcp', version: '0.1.1' });
 
   server.registerTool(
     'game_help',
@@ -153,4 +153,4 @@ function createServer(): McpServer {
 }
 
 void serveStdio(createServer);
-console.error('jianghu-rp-mcp v0.1.0 running on stdio');
+console.error('jianghu-rp-mcp v0.1.1 running on stdio');
