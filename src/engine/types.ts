@@ -16,6 +16,18 @@ export interface ItemEffect {
   enable_reroll?: boolean;
   cancel_next_adverse?: boolean;
   antidote?: number;
+  choose_next_roll?: boolean;
+}
+
+export interface ItemInteraction {
+  usable?: boolean;
+  wearable?: boolean;
+  giftable?: boolean;
+  use_target?: 'self' | 'partner' | 'either';
+  use_text?: string;
+  wear_text?: string;
+  customizable?: boolean;
+  customize_cost?: number;
 }
 
 export interface ItemDefinition {
@@ -24,6 +36,8 @@ export interface ItemDefinition {
   description: string;
   consumable: boolean;
   collectible?: boolean;
+  purchase_text?: string;
+  interaction?: ItemInteraction;
   effect: ItemEffect;
 }
 
@@ -40,7 +54,7 @@ export interface ShopOption {
   id: string;
   label: string;
   cost: number;
-  kind: 'item' | 'effect' | 'inspect' | 'identify' | 'leave';
+  kind: 'item' | 'effect' | 'inspect' | 'identify' | 'engrave' | 'leave';
   item_id?: string;
   effect?: MechanicalEffect;
   distance?: number;
@@ -89,12 +103,15 @@ export interface ChapterDefinition {
   length: number;
   opening: { title: string; text: string };
   collectible: { item_id: string; award: 'first_finisher' };
+  same_space_hooks?: string[];
   cells: Cell[];
 }
 
 export interface InventoryEntry {
   itemId: string;
   count: number;
+  engraving?: string;
+  variant?: string;
 }
 
 export interface PlayerEffects {
@@ -103,6 +120,7 @@ export interface PlayerEffects {
   rerollReady: boolean;
   cancelNextAdverse: boolean;
   antidote: number;
+  forcedNextRoll?: number;
 }
 
 export interface PlayerState {
@@ -114,6 +132,7 @@ export interface PlayerState {
   position: number;
   finished: boolean;
   inventory: InventoryEntry[];
+  wornItems: string[];
   effects: PlayerEffects;
 }
 
@@ -138,6 +157,12 @@ export interface GameLogEntry {
   message: string;
 }
 
+export interface InteractiveUseRecord {
+  player: PlayerId;
+  itemId: string;
+  targetPlayer?: PlayerId;
+}
+
 export interface GameState {
   sessionId: string;
   version: string;
@@ -151,5 +176,6 @@ export interface GameState {
   firstFinisher?: PlayerId;
   setupPendingDisguises: PlayerId[];
   resolvedScenes: number[];
+  lastInteractiveUse?: InteractiveUseRecord;
   log: GameLogEntry[];
 }

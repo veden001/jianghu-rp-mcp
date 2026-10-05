@@ -15,7 +15,7 @@ import type {
   ShopCell,
 } from './types.js';
 
-const GAME_VERSION = '0.1.1';
+const GAME_VERSION = '0.1.2';
 
 type Rng = (min: number, maxExclusive: number) => number;
 const defaultRng: Rng = (min, maxExclusive) => randomInt(min, maxExclusive);
@@ -37,13 +37,19 @@ export interface ActionInput {
     | 'buy'
     | 'complete_scene'
     | 'use_item'
+    | 'wear_item'
+    | 'gift_item'
+    | 'customize_item'
     | 'accept_roll'
     | 'reroll_roll';
   player?: PlayerId;
+  targetPlayer?: PlayerId;
   optionId?: string;
   itemId?: string;
   targetItemId?: string;
   disguiseIdentityId?: string;
+  customText?: string;
+  chosenRoll?: number;
 }
 
 function appendLog(state: GameState, message: string): void {
@@ -52,8 +58,13 @@ function appendLog(state: GameState, message: string): void {
 }
 
 function normalizeLoadedState(state: GameState): GameState {
-  // v0.1.0 saves predate scene-resolution tracking.
+  // Backward compatibility for v0.1.0-v0.1.1 saves.
   if (!Array.isArray(state.resolvedScenes)) state.resolvedScenes = [];
+  for (const id of ['human', 'ai'] as PlayerId[]) {
+    const player = state.players[id];
+    if (!Array.isArray(player.wornItems)) player.wornItems = [];
+    if (typeof player.effects.forcedNextRoll !== 'number') player.effects.forcedNextRoll = undefined;
+  }
   return state;
 }
 
@@ -87,6 +98,7 @@ function makePlayer(id: PlayerId, name: string, identity: Identity): PlayerState
     position: 1,
     finished: false,
     inventory: [],
+    wornItems: [],
     effects: {
       nextMoveBonus: 0,
       nextRollDelta: 0,
@@ -104,14 +116,40 @@ function addItem(player: PlayerState, itemId: string, count = 1): void {
 }
 
 function removeItem(player: PlayerState, itemId: string, count = 1): void {
-  const existing = player.inventory.find((entry) => entry.itemId === itemId);
-  if (!existing || existing.count < count) throw new Error(`Item not available: ${itemId}`);
-  existing.count -= count;
-  if (existing.count === 0) player.inventory = player.inventory.filter((entry) => entry.itemId !== itemId);
+  let remaining = count;
+  for (const entry of player.inventory.filter((candidate) => candidate.itemId === itemId)) {
+    const take = Math.min(entry.count, remaining);
+    entry.count -= take;
+    remaining -= take;
+    if (remaining === 0) break;
+  }
+  if (remaining > 0) throw new Error(`Item not available: ${itemId}`);
+  player.inventory = player.inventory.filter((entry) => entry.count > 0);
+  if (itemCount(player, itemId) === 0) player.wornItems = player.wornItems.filter((id) => id !== itemId);
 }
 
 function itemCount(player: PlayerState, itemId: string): number {
-  return player.inventory.find((entry) => entry.itemId === itemId)?.count ?? 0;
+  return player.inventory
+    .filter((entry) => entry.itemId === itemId)
+    .reduce((sum, entry) => sum + entry.count, 0);
+}
+
+function singleItemEntry(player: PlayerState, itemId: string): InventoryEntry {
+  const entry = player.inventory.find((candidate) => candidate.itemId === itemId);
+  if (!entry) throw new Error(`Item not available: ${itemId}`);
+  if (entry.count === 1) return entry;
+  entry.count -= 1;
+  const split: InventoryEntry = { itemId, count: 1 };
+  player.inventory.push(split);
+  return split;
+}
+
+function giftOneItem(from: PlayerState, to: PlayerState, itemId: string): InventoryEntry {
+  const entry = singleItemEntry(from, itemId);
+  from.inventory = from.inventory.filter((candidate) => candidate !== entry);
+  to.inventory.push(entry);
+  if (itemCount(from, itemId) === 0) from.wornItems = from.wornItems.filter((id) => id !== itemId);
+  return entry;
 }
 
 function otherPlayer(id: PlayerId): PlayerId {
@@ -152,8 +190,27 @@ function advanceTurn(state: GameState, from: PlayerId): void {
 function inventoryNames(player: PlayerState, items: ItemDefinition[]): string[] {
   return player.inventory.map((entry) => {
     const def = items.find((item) => item.id === entry.itemId);
-    return `${def?.name ?? entry.itemId}×${entry.count}`;
+    const annotations: string[] = [];
+    if (entry.variant) annotations.push(`定制：变${entry.variant}`);
+    if (entry.engraving) annotations.push(`刻字：${entry.engraving}`);
+    if (player.wornItems.includes(entry.itemId)) annotations.push('佩戴中');
+    const suffix = annotations.length ? `（${annotations.join('；')}）` : '';
+    return `${def?.name ?? entry.itemId}${suffix}×${entry.count}`;
   });
+}
+
+function sameSpaceHook(
+  state: GameState,
+  playerId: PlayerId,
+  chapter: ChapterDefinition,
+  rng: Rng,
+): string | undefined {
+  const other = state.players[otherPlayer(playerId)];
+  const player = state.players[playerId];
+  if (player.finished || other.finished || player.position !== other.position) return undefined;
+  const hooks = chapter.same_space_hooks ?? [];
+  if (hooks.length === 0) return undefined;
+  return `【同格偶遇｜可选】${hooks[rng(0, hooks.length)]}`;
 }
 
 function applyEffect(
@@ -211,6 +268,8 @@ async function resolveLanding(
   if (cell.type === 'scene') {
     if (state.resolvedScenes.includes(cell.position)) {
       out.push('这个江湖场景已经在本章发生过，本次不重复触发。');
+      const hook = sameSpaceHook(state, playerId, chapter, rng);
+      if (hook) out.push(hook);
       advanceTurn(state, playerId);
       return out;
     }
@@ -233,6 +292,8 @@ async function resolveLanding(
     if (cell.adverse && player.effects.cancelNextAdverse) {
       player.effects.cancelNextAdverse = false;
       out.push('烟丸生效：本次不利轻事件已取消。');
+      const hook = sameSpaceHook(state, playerId, chapter, rng);
+      if (hook) out.push(hook);
       advanceTurn(state, playerId);
       return out;
     }
@@ -246,6 +307,8 @@ async function resolveLanding(
       out.push(...(await movePlayer(state, playerId, immediateMove, chapter, items, rng, '事件移动')));
       return out;
     }
+    const hook = sameSpaceHook(state, playerId, chapter, rng);
+    if (hook) out.push(hook);
     advanceTurn(state, playerId);
     return out;
   }
@@ -262,6 +325,8 @@ async function resolveLanding(
       out.push(...(await movePlayer(state, playerId, immediateMove, chapter, items, rng, '节奏格移动')));
       return out;
     }
+    const hook = sameSpaceHook(state, playerId, chapter, rng);
+    if (hook) out.push(hook);
     advanceTurn(state, playerId);
     return out;
   }
@@ -380,7 +445,10 @@ export async function roll(sessionId: string, rng: Rng = defaultRng): Promise<{ 
   const player = state.players[playerId];
   if (player.finished) throw new Error('Finished player cannot roll.');
 
-  const raw = rng(1, 7);
+  state.lastInteractiveUse = undefined;
+  const forcedRoll = player.effects.forcedNextRoll;
+  const raw = forcedRoll ?? rng(1, 7);
+  player.effects.forcedNextRoll = undefined;
   const rollDelta = player.effects.nextRollDelta;
   const die = Math.max(1, raw + rollDelta);
 
@@ -402,7 +470,9 @@ export async function roll(sessionId: string, rng: Rng = defaultRng): Promise<{ 
   const totalMove = die + moveBonus;
   const chapter = await loadChapter(state.chapterId);
   const items = await loadItems();
-  const lines = [`${player.name}掷出了 ${die} 点${moveBonus ? `，额外移动加成 +${moveBonus}` : ''}。`];
+  const lines = [
+    `${player.name}${forcedRoll ? `按《上官昭容诗集》指定基础点数 ${forcedRoll}，最终` : ''}掷出了 ${die} 点${moveBonus ? `，额外移动加成 +${moveBonus}` : ''}。`,
+  ];
   lines.push(...(await movePlayer(state, playerId, totalMove, chapter, items, rng)));
   appendLog(state, lines.join(' '));
   await saveState(state);
@@ -439,6 +509,8 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
   const items = await loadItems();
   const chapter = await loadChapter(state.chapterId);
   let text = '';
+
+  if (input.action !== 'use_item') state.lastInteractiveUse = undefined;
 
   if (input.action === 'choose_disguise') {
     const playerId = input.player;
@@ -481,9 +553,16 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     if (!option) throw new Error(`Unknown shop option: ${input.optionId}`);
     const player = state.players[pending.player];
     if (player.money < option.cost) throw new Error(`Not enough money. Need ${option.cost}, have ${player.money}.`);
+
+    if (option.kind === 'engrave') {
+      if (!input.targetItemId || !input.customText?.trim()) throw new Error('Engraving requires targetItemId and customText.');
+      const target = singleItemEntry(player, input.targetItemId);
+      if (target.engraving) throw new Error('That item has already been engraved. Engraving cannot be undone.');
+      target.engraving = input.customText.trim();
+    }
+
     player.money -= option.cost;
     const lines = [`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`];
-
     state.pendingShop = undefined;
     state.status = 'active';
 
@@ -491,6 +570,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
       addItem(player, option.item_id);
       const def = items.find((entry) => entry.id === option.item_id);
       lines.push(`获得道具【${def?.name ?? option.item_id}】。`);
+      if (def?.purchase_text) lines.push(def.purchase_text);
     } else if (option.kind === 'effect') {
       const { immediateMove, notes } = applyEffect(player, option.effect);
       lines.push(...notes);
@@ -514,42 +594,136 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
       if (!def) throw new Error('Unknown item.');
       const verdict = def.id === 'fake_rubbing' ? '赝品' : def.collectible ? '收藏品' : '普通物品';
       lines.push(`鉴定结果：【${def.name}】属于${verdict}。${def.description}`);
+    } else if (option.kind === 'engrave') {
+      const def = items.find((entry) => entry.id === input.targetItemId);
+      lines.push('铁匠抬头问你刻什么，你说了，铁匠面无表情地刻完了。她上班这么多年什么都见过。');
+      lines.push(`【${def?.name ?? input.targetItemId}】永久刻字：「${input.customText!.trim()}」`);
     }
 
     if (state.status === 'active') advanceTurn(state, pending.player);
     text = lines.join('\n\n');
   } else if (input.action === 'use_item') {
     const playerId = input.player ?? state.currentPlayer;
-    if (state.status !== 'active') throw new Error('Mechanical items can only be used between scenes, before rolling.');
-    if (playerId !== state.currentPlayer) throw new Error('Only the current player may use a mechanical item.');
+    const player = state.players[playerId];
     if (!input.itemId) throw new Error('use_item requires itemId.');
-    if (itemCount(state.players[playerId], input.itemId) < 1) throw new Error('Item not in inventory.');
+    if (itemCount(player, input.itemId) < 1) throw new Error('Item not in inventory.');
     const def = items.find((entry) => entry.id === input.itemId);
     if (!def) throw new Error('Unknown item.');
+    const hasMechanicalEffect = Object.keys(def.effect).length > 0;
+
+    if (hasMechanicalEffect) {
+      if (state.status !== 'active') throw new Error('Mechanical items can only be used between scenes, before rolling.');
+      if (playerId !== state.currentPlayer) throw new Error('Only the current player may use a mechanical item.');
+      const notes: string[] = [];
+      if (def.effect.next_move_bonus) {
+        player.effects.nextMoveBonus += def.effect.next_move_bonus;
+        notes.push(`下一次移动 +${def.effect.next_move_bonus}`);
+      }
+      if (def.effect.next_roll_bonus) {
+        player.effects.nextRollDelta += def.effect.next_roll_bonus;
+        notes.push(`下一次掷骰 +${def.effect.next_roll_bonus}`);
+      }
+      if (def.effect.enable_reroll) {
+        player.effects.rerollReady = true;
+        notes.push('下一次掷骰可重掷一次');
+      }
+      if (def.effect.cancel_next_adverse) {
+        player.effects.cancelNextAdverse = true;
+        notes.push('下一次不利轻事件将自动取消');
+      }
+      if (def.effect.antidote) {
+        player.effects.antidote += def.effect.antidote;
+        notes.push('获得一次解毒储备');
+      }
+      if (def.effect.choose_next_roll) {
+        if (!Number.isInteger(input.chosenRoll) || input.chosenRoll! < 1 || input.chosenRoll! > 6) {
+          throw new Error('上官昭容诗集需要 chosenRoll，且必须是1至6之间的整数。');
+        }
+        player.effects.forcedNextRoll = input.chosenRoll;
+        notes.push(`下一次d6基础点数指定为 ${input.chosenRoll}`);
+      }
+      if (def.consumable) removeItem(player, input.itemId);
+      state.lastInteractiveUse = undefined;
+      text = `使用道具【${def.name}】。${notes.join('；')}`;
+    } else {
+      if (state.status !== 'active' && state.status !== 'awaiting_scene') {
+        throw new Error('Interactive items can be used during normal play or a roleplay scene.');
+      }
+      const interaction = def.interaction;
+      const requestedTarget = input.targetPlayer;
+      let targetPlayer: PlayerId = playerId;
+      if (interaction?.use_target === 'partner') targetPlayer = requestedTarget ?? otherPlayer(playerId);
+      else if (interaction?.use_target === 'either') targetPlayer = requestedTarget ?? playerId;
+      else if (requestedTarget) targetPlayer = requestedTarget;
+      if (interaction?.use_target === 'self' && targetPlayer !== playerId) throw new Error('This item is self-use only.');
+      if (interaction?.use_target === 'partner' && targetPlayer === playerId) throw new Error('This item must target the other player.');
+
+      if (def.id === 'pig_spray') {
+        const entry = player.inventory.find((candidate) => candidate.itemId === def.id)!;
+        const form = entry.variant?.trim() || '猪';
+        const target = state.players[targetPlayer];
+        const formText = form === '猪' ? '超级可爱的粉色迷你猪' : `超级可爱的迷你${form}`;
+        text = `${player.name}对${target.name}使用了【${entry.variant ? `变${form}喷雾` : '变猪喷雾'}】。${target.name}暂时变成了${formText}，时效半个时辰。这个变化只影响角色扮演，不改变位置、骰点或固定剧情结算。`;
+        const previous = state.lastInteractiveUse;
+        if (previous?.itemId === 'pig_spray' && previous.player === targetPlayer && previous.targetPlayer === playerId) {
+          text += '\n\n【系统提示】亲密度↑\n（本游戏并不存在亲密度数值，请自行体会。）';
+          state.lastInteractiveUse = undefined;
+        } else {
+          state.lastInteractiveUse = { player: playerId, itemId: def.id, targetPlayer };
+        }
+      } else {
+        const targetPrefix = targetPlayer !== playerId ? `${player.name}对${state.players[targetPlayer].name}使用【${def.name}】。` : `${player.name}使用【${def.name}】。`;
+        text = `${targetPrefix}${interaction?.use_text ?? '该道具没有固定机械效果，可自由纳入当前角色扮演。'}`;
+        state.lastInteractiveUse = { player: playerId, itemId: def.id, targetPlayer };
+      }
+      if (def.consumable) removeItem(player, input.itemId);
+    }
+  } else if (input.action === 'wear_item') {
+    if (state.status !== 'active' && state.status !== 'awaiting_scene') throw new Error('Items can only be worn during normal play or a roleplay scene.');
+    const playerId = input.player ?? state.currentPlayer;
     const player = state.players[playerId];
-    const notes: string[] = [];
-    if (def.effect.next_move_bonus) {
-      player.effects.nextMoveBonus += def.effect.next_move_bonus;
-      notes.push(`下一次移动 +${def.effect.next_move_bonus}`);
+    if (!input.itemId || itemCount(player, input.itemId) < 1) throw new Error('wear_item requires an owned itemId.');
+    const def = items.find((entry) => entry.id === input.itemId);
+    if (!def?.interaction?.wearable) throw new Error('That item is not wearable.');
+    if (player.wornItems.includes(def.id)) {
+      player.wornItems = player.wornItems.filter((id) => id !== def.id);
+      text = `${player.name}摘下了【${def.name}】。`;
+    } else {
+      player.wornItems.push(def.id);
+      text = `${player.name}戴上了【${def.name}】。${def.interaction.wear_text ?? ''}`.trim();
     }
-    if (def.effect.next_roll_bonus) {
-      player.effects.nextRollDelta += def.effect.next_roll_bonus;
-      notes.push(`下一次掷骰 +${def.effect.next_roll_bonus}`);
-    }
-    if (def.effect.enable_reroll) {
-      player.effects.rerollReady = true;
-      notes.push('下一次掷骰可重掷一次');
-    }
-    if (def.effect.cancel_next_adverse) {
-      player.effects.cancelNextAdverse = true;
-      notes.push('下一次不利轻事件将自动取消');
-    }
-    if (def.effect.antidote) {
-      player.effects.antidote += def.effect.antidote;
-      notes.push('获得一次解毒储备');
-    }
-    if (def.consumable) removeItem(player, input.itemId);
-    text = `使用道具【${def.name}】。${notes.length ? notes.join('；') : '该道具没有固定机械效果，可在角色扮演中自由使用。'}`;
+  } else if (input.action === 'gift_item') {
+    if (state.status !== 'active' && state.status !== 'awaiting_scene') throw new Error('Items can only be gifted during normal play or a roleplay scene.');
+    const playerId = input.player ?? state.currentPlayer;
+    const targetPlayer = input.targetPlayer ?? otherPlayer(playerId);
+    if (targetPlayer === playerId) throw new Error('gift_item target must be the other player.');
+    if (!input.itemId) throw new Error('gift_item requires itemId.');
+    const from = state.players[playerId];
+    const to = state.players[targetPlayer];
+    if (itemCount(from, input.itemId) < 1) throw new Error('Item not in inventory.');
+    const def = items.find((entry) => entry.id === input.itemId);
+    if (!def) throw new Error('Unknown item.');
+    if (def.interaction?.giftable === false) throw new Error('That item cannot be gifted.');
+    const moved = giftOneItem(from, to, input.itemId);
+    const details = [moved.variant ? `定制：变${moved.variant}` : '', moved.engraving ? `刻字：${moved.engraving}` : ''].filter(Boolean);
+    text = `${from.name}把【${def.name}】送给了${to.name}${details.length ? `（${details.join('；')}）` : ''}。`;
+  } else if (input.action === 'customize_item') {
+    if (state.status !== 'active' && state.status !== 'awaiting_scene') throw new Error('Items can only be customized during normal play or a roleplay scene.');
+    const playerId = input.player ?? state.currentPlayer;
+    const player = state.players[playerId];
+    if (!input.itemId || itemCount(player, input.itemId) < 1) throw new Error('customize_item requires an owned itemId.');
+    const def = items.find((entry) => entry.id === input.itemId);
+    if (!def?.interaction?.customizable) throw new Error('That item does not support customization.');
+    let custom = input.customText?.trim() ?? '';
+    if (!custom) throw new Error('customize_item requires customText.');
+    custom = custom.replace(/^变/, '').replace(/喷雾$/, '').trim();
+    if (!custom) throw new Error('Please provide an animal or transformation name.');
+    const cost = def.interaction.customize_cost ?? 0;
+    if (player.money < cost) throw new Error(`Not enough money. Need ${cost}, have ${player.money}.`);
+    player.money -= cost;
+    const entry = singleItemEntry(player, input.itemId);
+    entry.variant = custom;
+    text = `你额外支付${cost}两，传信至天庭。养猪仙女在百忙之中回信：特别款【变${custom}喷雾】定制完成。\n\n银两剩余：${player.money}两。`;
   } else {
     throw new Error(`Unsupported action: ${String(input.action)}`);
   }
@@ -560,7 +734,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
 }
 
 export async function summarizeGame(sessionId: string): Promise<string> {
-  const state = await loadState(sessionId);
+  const state = normalizeLoadedState(await loadState(sessionId));
   const items = await loadItems();
   const chapter = await loadChapter(state.chapterId);
   const lines = [

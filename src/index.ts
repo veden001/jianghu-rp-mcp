@@ -15,6 +15,9 @@ const HOST_RULES = `你正在主持并参与一局《江湖棋局》。你同时
 - 不评价玩家演技，不做成功率判定。双方围绕场景完成基本互动、形成可继续剧情的结果后，调用 complete_scene，并原样传达系统返回的固定结算。
 - 不要因为玩家刚开始表演就立刻结算。给互动留出空间。
 - 功能格是明确的桌游选择。列出系统给出的选项，让落格玩家选择，再调用 buy。
+- 同格偶遇与节奏格互动钩子都是轻量、可选的交流机会，不需要 complete_scene；玩家不想聊就直接继续。
+- 互动道具可以改变角色扮演过程，但不能改变系统规定的固定结算。可用 use_item / wear_item / gift_item / customize_item 处理玩具、佩戴、赠礼与定制。
+- “亲密度↑”只是玩笑式系统提示，本游戏不存在亲密度数值。
 - AI玩家可以隐瞒自己的角色背景、秘密和真实特殊身份。角色设定可以自由补充，但不能凭空改变既定场景事实，或借身份取得系统未授予的机械优势。
 - 主持人口吻与AI玩家角色口吻要清楚区分。`;
 
@@ -26,7 +29,7 @@ function asText(text: string, structuredContent?: Record<string, unknown>) {
 }
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: 'jianghu-rp-mcp', version: '0.1.1' });
+  const server = new McpServer({ name: 'jianghu-rp-mcp', version: '0.1.2' });
 
   server.registerTool(
     'game_help',
@@ -88,15 +91,18 @@ function createServer(): McpServer {
   server.registerTool(
     'game_action',
     {
-      description: 'Resolve a non-roll game action: set an immortal disguise, choose a function-cell option, complete a roleplay scene, use an item, or accept/reroll a pending die result.',
+      description: 'Resolve a non-roll game action: function-cell choices, scene completion, mechanical/interactive item use, wear/gift/customize items, immortal disguise, or pending die choices.',
       inputSchema: z.object({
         sessionId: z.string().min(1),
-        action: z.enum(['choose_disguise', 'buy', 'complete_scene', 'use_item', 'accept_roll', 'reroll_roll']),
+        action: z.enum(['choose_disguise', 'buy', 'complete_scene', 'use_item', 'wear_item', 'gift_item', 'customize_item', 'accept_roll', 'reroll_roll']),
         player: z.enum(['human', 'ai']).optional(),
+        targetPlayer: z.enum(['human', 'ai']).optional(),
         optionId: z.string().optional(),
         itemId: z.string().optional(),
         targetItemId: z.string().optional(),
         disguiseIdentityId: z.string().optional(),
+        customText: z.string().max(120).optional(),
+        chosenRoll: z.number().int().min(1).max(6).optional(),
       }),
     },
     async (args) => {
@@ -153,4 +159,4 @@ function createServer(): McpServer {
 }
 
 void serveStdio(createServer);
-console.error('jianghu-rp-mcp v0.1.1 running on stdio');
+console.error('jianghu-rp-mcp v0.1.2 running on stdio');

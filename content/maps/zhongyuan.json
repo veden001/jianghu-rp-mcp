@@ -64,6 +64,27 @@
           "item_id": "smoke_pellet"
         },
         {
+          "id": "buy_shangguan_poems",
+          "label": "上官昭容诗集，10两：使用时可指定下一次d6的基础点数（1-6）",
+          "cost": 10,
+          "kind": "item",
+          "item_id": "shangguan_poems"
+        },
+        {
+          "id": "buy_nuo_mask",
+          "label": "傩面，5两：收藏品，戴上很威风",
+          "cost": 5,
+          "kind": "item",
+          "item_id": "nuo_mask"
+        },
+        {
+          "id": "buy_gold_buyao",
+          "label": "金步摇，10两：收藏品，可佩戴，也可赠送",
+          "cost": 10,
+          "kind": "item",
+          "item_id": "gold_buyao"
+        },
+        {
           "id": "leave",
           "label": "什么都不买，离开",
           "cost": 0,
@@ -138,6 +159,20 @@
           }
         },
         {
+          "id": "buy_goujian_bile",
+          "label": "传说级道具！勾践尝过的胆，1两：收藏品，舔一口能让人戴上痛苦面具",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "goujian_bile"
+        },
+        {
+          "id": "buy_damp_maltesers",
+          "label": "一袋受潮的麦丽素，5两：收藏品，神秘的黑棕色小丸子",
+          "cost": 5,
+          "kind": "item",
+          "item_id": "damp_maltesers"
+        },
+        {
           "id": "leave",
           "label": "不购买，离开",
           "cost": 0,
@@ -196,6 +231,34 @@
           "cost": 6,
           "kind": "inspect",
           "distance": 3
+        },
+        {
+          "id": "buy_pig_spray",
+          "label": "变猪喷雾，5两：收藏品，把搭档变成粉色迷你猪半个时辰；可另付3两定制动物款",
+          "cost": 5,
+          "kind": "item",
+          "item_id": "pig_spray"
+        },
+        {
+          "id": "buy_mystery_booklet",
+          "label": "神秘小册子，2两：收藏品，摊主对你挤眉弄眼，疯狂暗示",
+          "cost": 2,
+          "kind": "item",
+          "item_id": "mystery_booklet"
+        },
+        {
+          "id": "buy_m_fries",
+          "label": "m记薯条，1两：收藏品，你进入了k记对门的食肆",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "m_fries"
+        },
+        {
+          "id": "buy_k_icecream",
+          "label": "k记甜筒，1两：收藏品，你进入了m记对门的食肆",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "k_icecream"
         },
         {
           "id": "leave",
@@ -286,6 +349,13 @@
           "distance": 1
         },
         {
+          "id": "buy_prepared_dish",
+          "label": "预制菜，10两：收藏品，摆盘精致、毫无锅气的食物",
+          "cost": 10,
+          "kind": "item",
+          "item_id": "prepared_dish"
+        },
+        {
           "id": "leave",
           "label": "离开",
           "cost": 0,
@@ -349,6 +419,19 @@
           "label": "鉴定一件来源不明的普通道具，4两",
           "cost": 4,
           "kind": "identify"
+        },
+        {
+          "id": "engrave_item",
+          "label": "刻字服务，3两：在任意一件已有道具上刻字，内容自选，刻完不可撤销",
+          "cost": 3,
+          "kind": "engrave"
+        },
+        {
+          "id": "buy_iron_lotus_hairpin",
+          "label": "铁莲花簪，8两：收藏品，粗糙但结实，可以别头发也可以捅人",
+          "cost": 8,
+          "kind": "item",
+          "item_id": "iron_lotus_hairpin"
         },
         {
           "id": "leave",
@@ -419,6 +502,13 @@
           "cost": 5,
           "kind": "inspect",
           "distance": 3
+        },
+        {
+          "id": "buy_station_braised_egg",
+          "label": "驿站食堂卤蛋，1两：收藏品，食堂的大娘自己卤的",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "station_braised_egg"
         },
         {
           "id": "leave",
@@ -492,5 +582,13 @@
       "goal": "两名玩家需要合作从货舱里脱身。具体怎么做，由玩家自由发挥。",
       "resolution": "等你们终于冲出货舱时，已经迟了一步。真正的照骨剑被那名北方骑手带上了另一艘渡船。船已经离岸。第二日，一条消息传遍中原：照骨剑已过黄河，持剑人一路北上进入塞外。更奇怪的是，那名骑手似乎并不是临时来抢剑的，他像是早就知道照骨会在这里出现，也像是早就在等它。第一章，中原风起，结束。"
     }
+  ],
+  "same_space_hooks": [
+    "你们居然又在同一处停下。同行人就在旁边。如果愿意，可以随口说一句此刻最想吐槽的事。",
+    "路边摊只剩最后一串糖葫芦。摊主看看你们：二位谁要？",
+    "茶摊老板只多倒出了一杯热茶，顺手推到你们中间：自己分。",
+    "一个小孩蹲在路边看了你们半天，忽然问：你们两个谁更厉害？",
+    "小贩一见你们走在一起，立刻热情招呼：同行价，二位一起算便宜点。其实根本没便宜。",
+    "一只路边的猫绕着你们转了两圈，最后在其中一个人的鞋边坐下。由你们决定它选中了谁。"
   ]
 }

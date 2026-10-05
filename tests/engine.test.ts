@@ -4,7 +4,16 @@ import { rm } from 'node:fs/promises';
 import { gameAction, getGameState, newGame, roll } from '../src/engine/game.js';
 import { saveState } from '../src/engine/store.js';
 
-const sessions = ['test_scene', 'test_shop', 'test_special', 'test_finale'];
+const sessions = [
+  'test_scene',
+  'test_shop',
+  'test_special',
+  'test_finale',
+  'test_same_space',
+  'test_poetry',
+  'test_toys',
+  'test_engrave',
+];
 
 after(async () => {
   await Promise.all(
@@ -120,4 +129,132 @@ test('first finisher gets the collectible and finale waits for both players', as
 
   const completed = await gameAction({ sessionId: 'test_finale', action: 'complete_scene' });
   assert.equal(completed.state.status, 'chapter_complete');
+});
+
+test('landing on the other player can produce a lightweight same-space interaction hook', async () => {
+  await newGame({
+    sessionId: 'test_same_space',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+  const state = await getGameState('test_same_space');
+  state.players.human.position = 6;
+  state.players.ai.position = 7;
+  state.resolvedScenes = [3, 6];
+  state.currentPlayer = 'human';
+  await saveState(state);
+
+  const landed = await roll('test_same_space', () => 1);
+  assert.equal(landed.state.players.human.position, 7);
+  assert.match(landed.text, /同格偶遇/);
+});
+
+test('Shangguan poetry collection can set the next d6 base result', async () => {
+  await newGame({
+    sessionId: 'test_poetry',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+  const state = await getGameState('test_poetry');
+  state.players.human.position = 4;
+  state.players.human.inventory.push({ itemId: 'shangguan_poems', count: 1 });
+  state.resolvedScenes = [3, 6];
+  state.currentPlayer = 'human';
+  await saveState(state);
+
+  const used = await gameAction({
+    sessionId: 'test_poetry',
+    action: 'use_item',
+    player: 'human',
+    itemId: 'shangguan_poems',
+    chosenRoll: 5,
+  });
+  assert.equal(used.state.players.human.effects.forcedNextRoll, 5);
+  assert.equal(used.state.players.human.inventory.some((x) => x.itemId === 'shangguan_poems'), false);
+
+  const rolled = await roll('test_poetry', () => 1);
+  assert.match(rolled.text, /指定基础点数 5/);
+  assert.equal(rolled.state.players.human.position, 9);
+});
+
+test('interactive toys can be customized, used reciprocally, worn and gifted without changing hard outcomes', async () => {
+  await newGame({
+    sessionId: 'test_toys',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+  const state = await getGameState('test_toys');
+  state.players.human.inventory.push({ itemId: 'pig_spray', count: 1 }, { itemId: 'nuo_mask', count: 1 });
+  state.players.ai.inventory.push({ itemId: 'pig_spray', count: 1 });
+  await saveState(state);
+
+  const customized = await gameAction({
+    sessionId: 'test_toys',
+    action: 'customize_item',
+    player: 'human',
+    itemId: 'pig_spray',
+    customText: '猫',
+  });
+  assert.equal(customized.state.players.human.money, 27);
+  assert.equal(customized.state.players.human.inventory.find((x) => x.itemId === 'pig_spray')?.variant, '猫');
+
+  const firstSpray = await gameAction({
+    sessionId: 'test_toys',
+    action: 'use_item',
+    player: 'human',
+    targetPlayer: 'ai',
+    itemId: 'pig_spray',
+  });
+  assert.match(firstSpray.text, /迷你猫/);
+
+  const reciprocal = await gameAction({
+    sessionId: 'test_toys',
+    action: 'use_item',
+    player: 'ai',
+    targetPlayer: 'human',
+    itemId: 'pig_spray',
+  });
+  assert.match(reciprocal.text, /亲密度↑/);
+  assert.match(reciprocal.text, /不存在亲密度数值/);
+
+  const worn = await gameAction({ sessionId: 'test_toys', action: 'wear_item', player: 'human', itemId: 'nuo_mask' });
+  assert.equal(worn.state.players.human.wornItems.includes('nuo_mask'), true);
+
+  const gifted = await gameAction({ sessionId: 'test_toys', action: 'gift_item', player: 'human', targetPlayer: 'ai', itemId: 'nuo_mask' });
+  assert.equal(gifted.state.players.human.wornItems.includes('nuo_mask'), false);
+  assert.equal(gifted.state.players.ai.inventory.some((x) => x.itemId === 'nuo_mask'), true);
+});
+
+test('blacksmith engraving permanently annotates an owned item', async () => {
+  await newGame({
+    sessionId: 'test_engrave',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+  const state = await getGameState('test_engrave');
+  state.players.human.position = 24;
+  state.players.human.inventory.push({ itemId: 'gold_buyao', count: 1 });
+  state.status = 'awaiting_shop';
+  state.pendingShop = { cellPosition: 24, player: 'human' };
+  state.currentPlayer = 'human';
+  await saveState(state);
+
+  const engraved = await gameAction({
+    sessionId: 'test_engrave',
+    action: 'buy',
+    optionId: 'engrave_item',
+    targetItemId: 'gold_buyao',
+    customText: '同行千里',
+  });
+  assert.equal(engraved.state.players.human.money, 27);
+  assert.equal(engraved.state.players.human.inventory.find((x) => x.itemId === 'gold_buyao')?.engraving, '同行千里');
+  assert.match(engraved.text, /不可撤销|永久刻字/);
 });
