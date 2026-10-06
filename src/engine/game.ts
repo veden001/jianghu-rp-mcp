@@ -15,7 +15,7 @@ import type {
   ShopCell,
 } from './types.js';
 
-const GAME_VERSION = '0.2.0';
+const GAME_VERSION = '0.2.2';
 const NEXT_CHAPTER: Record<string, string | undefined> = { zhongyuan: 'saibei', saibei: undefined };
 const UPCOMING_CHAPTER_NAME: Record<string, string | undefined> = { saibei: '第三章：江南终局' };
 
@@ -44,6 +44,8 @@ export interface ActionInput {
     | 'customize_item'
     | 'accept_roll'
     | 'reroll_roll'
+    | 'stop_at_shop'
+    | 'continue_move'
     | 'start_next_chapter';
   player?: PlayerId;
   targetPlayer?: PlayerId;
@@ -53,6 +55,7 @@ export interface ActionInput {
   disguiseIdentityId?: string;
   customText?: string;
   chosenRoll?: number;
+  shopPosition?: number;
 }
 
 function appendLog(state: GameState, message: string): void {
@@ -182,6 +185,17 @@ function firstUnresolvedCoreSceneBetween(
     )
     .map((cell) => cell.position)
     .sort((a, b) => a - b)[0];
+}
+
+function shopPositionsBetween(
+  chapter: ChapterDefinition,
+  from: number,
+  destination: number,
+): number[] {
+  return chapter.cells
+    .filter((cell) => cell.type === 'shop' && cell.position > from && cell.position < destination)
+    .map((cell) => cell.position)
+    .sort((a, b) => a - b);
 }
 
 function advanceTurn(state: GameState, from: PlayerId): void {
@@ -347,24 +361,20 @@ async function resolveLanding(
   return out;
 }
 
-async function movePlayer(
+async function resolveMoveDestination(
   state: GameState,
   playerId: PlayerId,
-  spaces: number,
+  from: number,
+  destination: number,
   chapter: ChapterDefinition,
   items: ItemDefinition[],
   rng: Rng,
-  reason = '移动',
+  reason: string,
+  note = '',
 ): Promise<string[]> {
   const player = state.players[playerId];
-  const from = player.position;
-  const rolledDestination = Math.min(chapter.length, from + Math.max(0, spaces));
-  const coreStop = firstUnresolvedCoreSceneBetween(state, chapter, from, rolledDestination);
-  const destination = coreStop ?? rolledDestination;
   player.position = destination;
-  const out = [
-    `${reason}：${from} → ${destination}。${coreStop ? ' 途经尚未触发的核心场景，强制停留。' : ''}`,
-  ];
+  const out = [`${reason}：${from} → ${destination}。${note}`.trim()];
 
   if (destination >= chapter.length) {
     player.finished = true;
@@ -392,6 +402,71 @@ async function movePlayer(
 
   out.push(...(await resolveLanding(state, playerId, chapter, items, rng)));
   return out;
+}
+
+async function movePlayer(
+  state: GameState,
+  playerId: PlayerId,
+  spaces: number,
+  chapter: ChapterDefinition,
+  items: ItemDefinition[],
+  rng: Rng,
+  reason = '移动',
+): Promise<string[]> {
+  const player = state.players[playerId];
+  const from = player.position;
+  const rolledDestination = Math.min(chapter.length, from + Math.max(0, spaces));
+  const coreStop = firstUnresolvedCoreSceneBetween(state, chapter, from, rolledDestination);
+
+  // 核心场景优先级最高。只要路径上存在尚未触发的核心场景，直接停下，
+  // 不再询问途经商店。
+  if (coreStop !== undefined) {
+    return resolveMoveDestination(
+      state,
+      playerId,
+      from,
+      coreStop,
+      chapter,
+      items,
+      rng,
+      reason,
+      '途经尚未触发的核心场景，强制停留。',
+    );
+  }
+
+  // 若只是路过功能格，玩家可以从本次路径经过的商店中任选一家停留，
+  // 也可以全部跳过并继续前往原落点。真正落在商店格时仍按普通落格处理。
+  const passShops = shopPositionsBetween(chapter, from, rolledDestination);
+  if (passShops.length > 0) {
+    state.status = 'awaiting_pass_shop';
+    state.pendingPassShop = {
+      player: playerId,
+      from,
+      destination: rolledDestination,
+      shopPositions: passShops,
+      reason,
+    };
+    const shopLines = passShops.map((position) => {
+      const cell = getCell(chapter, position);
+      return `第${position}格【${cell.title}】`;
+    });
+    return [
+      `${reason}计划：${from} → ${rolledDestination}。`,
+      `【途经功能格】本次途中经过：${shopLines.join('、')}。`,
+      '你可以从这些功能格中任选一家停留，或全部跳过继续前往原落点。途经多个功能格时，本次移动最多只能选择一家。',
+    ];
+  }
+
+  return resolveMoveDestination(
+    state,
+    playerId,
+    from,
+    rolledDestination,
+    chapter,
+    items,
+    rng,
+    reason,
+  );
 }
 
 export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promise<{ state: GameState; text: string }> {
@@ -556,6 +631,47 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
       advanceTurn(state, pending.triggerPlayer);
       text += `\n\n本格完成。下一回合：${state.players[state.currentPlayer].name}。`;
     }
+  } else if (input.action === 'stop_at_shop') {
+    if (state.status !== 'awaiting_pass_shop' || !state.pendingPassShop) {
+      throw new Error('No passed-shop choice is awaiting resolution.');
+    }
+    const pending = state.pendingPassShop;
+    if (input.player && input.player !== pending.player) throw new Error('Only the moving player may choose a passed shop.');
+    if (!Number.isInteger(input.shopPosition)) throw new Error('stop_at_shop requires shopPosition.');
+    if (!pending.shopPositions.includes(input.shopPosition!)) throw new Error('That shop was not passed during this move.');
+    const cell = getCell(chapter, input.shopPosition!);
+    if (cell.type !== 'shop') throw new Error('Selected passed cell is not a shop.');
+    const player = state.players[pending.player];
+    player.position = cell.position;
+    state.pendingPassShop = undefined;
+    state.status = 'awaiting_shop';
+    state.pendingShop = { cellPosition: cell.position, player: pending.player };
+    const lines = [
+      `${player.name}选择在途经的第${cell.position}格【${cell.title}】停留。`,
+      cell.text,
+      ...cell.options.map((option, index) => `${String.fromCharCode(65 + index)}. ${option.label} [${option.id}]`),
+    ];
+    text = lines.join('\n\n');
+  } else if (input.action === 'continue_move') {
+    if (state.status !== 'awaiting_pass_shop' || !state.pendingPassShop) {
+      throw new Error('No passed-shop choice is awaiting resolution.');
+    }
+    const pending = state.pendingPassShop;
+    if (input.player && input.player !== pending.player) throw new Error('Only the moving player may continue this move.');
+    state.pendingPassShop = undefined;
+    state.status = 'active';
+    const lines = [`${state.players[pending.player].name}选择不在途经商店停留，继续赶路。`];
+    lines.push(...(await resolveMoveDestination(
+      state,
+      pending.player,
+      pending.from,
+      pending.destination,
+      chapter,
+      items,
+      rng,
+      pending.reason,
+    )));
+    text = lines.join('\n\n');
   } else if (input.action === 'start_next_chapter') {
     if (state.status !== 'chapter_complete') throw new Error('The current chapter is not complete yet.');
     const nextId = NEXT_CHAPTER[state.chapterId];
@@ -568,6 +684,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     state.pendingScene = undefined;
     state.pendingShop = undefined;
     state.pendingRoll = undefined;
+    state.pendingPassShop = undefined;
     state.firstFinisher = undefined;
     state.resolvedScenes = [];
     state.lastInteractiveUse = undefined;
@@ -612,6 +729,9 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     if (option.kind === 'item' && option.item_id) {
       addItem(player, option.item_id);
       const def = items.find((entry) => entry.id === option.item_id);
+      if (def?.interaction?.auto_wear_on_purchase && !player.wornItems.includes(def.id)) {
+        player.wornItems.push(def.id);
+      }
       lines.push(`获得道具【${def?.name ?? option.item_id}】。`);
       if (def?.purchase_text) lines.push(def.purchase_text);
     } else if (option.kind === 'effect') {
@@ -794,6 +914,13 @@ export async function summarizeGame(sessionId: string): Promise<string> {
   if (state.pendingScene) lines.push(`待完成场景：第${state.pendingScene.cellPosition}格`);
   if (state.pendingShop) lines.push(`待处理功能格：第${state.pendingShop.cellPosition}格`);
   if (state.pendingRoll) lines.push(`待决定骰子：${state.pendingRoll.die}点`);
+  if (state.pendingPassShop) {
+    const labels = state.pendingPassShop.shopPositions.map((position) => {
+      const cell = getCell(chapter, position);
+      return `第${position}格【${cell.title}】`;
+    });
+    lines.push(`待决定是否途经停店：${labels.join('、')}；也可全部跳过继续到第${state.pendingPassShop.destination}格`);
+  }
   return lines.join('\n');
 }
 

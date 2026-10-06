@@ -1,6 +1,6 @@
 export type PlayerId = 'human' | 'ai';
 export type IdentityMode = 'select' | 'random';
-export type GameStatus = 'setup' | 'active' | 'awaiting_scene' | 'awaiting_shop' | 'awaiting_roll_choice' | 'chapter_complete';
+export type GameStatus = 'setup' | 'active' | 'awaiting_scene' | 'awaiting_shop' | 'awaiting_pass_shop' | 'awaiting_roll_choice' | 'chapter_complete';
 
 export interface Identity {
   id: string;
@@ -28,6 +28,7 @@ export interface ItemInteraction {
   wear_text?: string;
   customizable?: boolean;
   customize_cost?: number;
+  auto_wear_on_purchase?: boolean;
 }
 
 export interface ItemDefinition {
@@ -152,6 +153,14 @@ export interface PendingRoll {
   rollDelta: number;
 }
 
+export interface PendingPassShop {
+  player: PlayerId;
+  from: number;
+  destination: number;
+  shopPositions: number[];
+  reason: string;
+}
+
 export interface GameLogEntry {
   at: string;
   message: string;
@@ -173,6 +182,7 @@ export interface GameState {
   pendingScene?: PendingScene;
   pendingShop?: PendingShop;
   pendingRoll?: PendingRoll;
+  pendingPassShop?: PendingPassShop;
   firstFinisher?: PlayerId;
   setupPendingDisguises: PlayerId[];
   resolvedScenes: number[];

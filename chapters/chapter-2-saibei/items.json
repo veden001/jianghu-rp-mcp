@@ -12,5 +12,167 @@
       "use_text": "铜马铃叮当响了两声。没有任何事情发生，但很好听。"
     },
     "effect": {}
+  },
+  {
+    "id": "saibei_longbow",
+    "name": "长梢弓",
+    "description": "配有黑绒箭袋。弓身饰以玛瑙、涂染着繁复绚丽的金纹。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你将弓握入掌中，爱不释手。\n\n落雁行银箭，开弓响铁环。勒兵严铁骑，破虏燕然山。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "self",
+      "use_text": "你取下长梢弓握在手中。它不会提供自动成功，但很适合此刻的江湖气。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "mulan_horse_gear_set",
+    "name": "花木兰将军同款·骏马鞍鞯辔头长鞭·组合包",
+    "description": "一个站点全套集齐，走南闯北都不怕，好女儿志在四方！",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "整套马具一摆出来，阵仗很足。至于现在有没有马，是另一个问题。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "saibei_riding_portrait",
+    "name": "塞北特色骑马肖像画",
+    "description": "草原风妆造、马术体验与专业画师现场手绘的一站式成果。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "获得了塞北特色骑马肖像画一副，真不错。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "你把塞北骑马肖像画展开给人看。画师技术确实不错。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "sun_simiao_notes",
+    "name": "孙思邈手札",
+    "description": "药王亲笔，价值连城。封面上印着一个猫猫爪印。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "上当了。虽然不知道为什么，但是很想说，又上当了。你扶额看着药铺老板一本正经地解释：自己小名药王，孙思邈是她养的橘猫的名字。\n\n算了算了，摸摸小猫。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "self",
+      "use_text": "你又翻了翻这本所谓的《孙思邈手札》。猫猫爪印依然清晰。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "hamster_wheel",
+    "name": "仓鼠跑轮",
+    "description": "传说中与这个蔚蓝星球存亡休戚相关之物。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "是的，不同时区的晚上都会有千万只仓鼠爬起来严肃地跑跑轮，全世界的夜晚都有小鼠在努力跑步。地球自转的真相不是角动量守恒，是全球仓鼠轮班制。\n\n你大彻大悟：小鼠跑步导致地球自转。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "你拨了拨仓鼠跑轮。关于地球为什么还在转，你心里已经有了答案。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "lingnan_flying_roach_model",
+    "name": "仿真岭南飞天蟑螂模型",
+    "description": "微微颤抖的触须，棕色的泛光甲壳……一切都有些过于逼真了。呃。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "到底为什么要买这个。\n\n但你还是买了。摊主认真地为你介绍起来：北方不曾有如此硕大的蟑螂，北人对大号蟑螂十分好奇，是故有此产品，销量绝好。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "这个模型实在过于逼真。光是拿出来，就已经足够制造一点不必要的骚动。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "ugly_fur_gloves",
+    "name": "一只特别丑的皮毛手套",
+    "description": "猎户大娘亲手缝的，针脚歪歪扭扭，但是真的很暖和。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "丑。但是暖和。你戴上了。",
+    "interaction": {
+      "wearable": true,
+      "giftable": true,
+      "auto_wear_on_purchase": true,
+      "wear_text": "手套还是很丑。但是真的很暖和。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "hunter_bbq_sauce",
+    "name": "猎户秘传烤肉酱",
+    "description": "配方绝密，据说传了七代。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你尝了一口。就是盐。很多很多的盐。猎户大娘满脸期待地看着你，你噎了一下：好味道！",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "你又尝了一点猎户秘传烤肉酱。嗯。盐。还是很多很多的盐。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "iron_horse_figurine",
+    "name": "铁制军马小摆件",
+    "description": "铁匠阿姨犯困的时候随手用废铁敲的小马，巴掌大，歪头，四条腿不一样长。呆呆的，意外地合眼缘。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "它站不稳。你把它放在桌上，它歪向左边，稍微调整调整，又歪向右边，但你觉得它在跟你打招呼。",
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "你把小铁马摆稳。它很快又歪向一边。像是在跟你打招呼。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "dry_bread",
+    "name": "干巴面包",
+    "description": "得配点水喝，咳咳，太干啦！",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "咬了一口。咳咳。水呢。"
+    },
+    "effect": {}
+  },
+  {
+    "id": "thick_yogurt",
+    "name": "干噎酪浆",
+    "description": "浓稠的牛乳香气，非牛顿流体。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "这东西浓稠得很有自己的想法。牛乳香倒是真的很足。"
+    },
+    "effect": {}
   }
 ]

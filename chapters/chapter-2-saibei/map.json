@@ -72,6 +72,27 @@
           "distance": 3
         },
         {
+          "id": "buy_saibei_longbow",
+          "label": "长梢弓，5两：收藏品，配黑绒箭袋，弓身饰玛瑙与繁复金纹",
+          "cost": 5,
+          "kind": "item",
+          "item_id": "saibei_longbow"
+        },
+        {
+          "id": "buy_mulan_horse_gear_set",
+          "label": "花木兰将军同款·骏马鞍鞯辔头长鞭·组合包，15两：收藏品，一个站点全套集齐",
+          "cost": 15,
+          "kind": "item",
+          "item_id": "mulan_horse_gear_set"
+        },
+        {
+          "id": "buy_saibei_riding_portrait",
+          "label": "特色绘图体验，10两：草原风妆造+马术体验+专业画师现场手绘",
+          "cost": 10,
+          "kind": "item",
+          "item_id": "saibei_riding_portrait"
+        },
+        {
           "id": "leave",
           "label": "离开",
           "cost": 0,
@@ -144,6 +165,13 @@
           }
         },
         {
+          "id": "buy_sun_simiao_notes",
+          "label": "孙思邈手札，3两：收藏品，药王亲笔，价值连城。封面有猫猫爪印",
+          "cost": 3,
+          "kind": "item",
+          "item_id": "sun_simiao_notes"
+        },
+        {
           "id": "leave",
           "label": "不购买，离开",
           "cost": 0,
@@ -199,6 +227,20 @@
           "cost": 6,
           "kind": "inspect",
           "distance": 3
+        },
+        {
+          "id": "buy_hamster_wheel",
+          "label": "仓鼠跑轮，2两：收藏品，传说中与这个蔚蓝星球存亡休戚相关之物",
+          "cost": 2,
+          "kind": "item",
+          "item_id": "hamster_wheel"
+        },
+        {
+          "id": "buy_lingnan_flying_roach_model",
+          "label": "仿真岭南飞天蟑螂模型，1两：收藏品，一切都有些过于逼真了",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "lingnan_flying_roach_model"
         },
         {
           "id": "leave",
@@ -289,6 +331,20 @@
           "distance": 1
         },
         {
+          "id": "buy_ugly_fur_gloves",
+          "label": "一只特别丑的皮毛手套，2两：收藏品，针脚歪歪扭扭但真的很暖和",
+          "cost": 2,
+          "kind": "item",
+          "item_id": "ugly_fur_gloves"
+        },
+        {
+          "id": "buy_hunter_bbq_sauce",
+          "label": "猎户秘传烤肉酱，1两：收藏品，配方绝密，据说传了七代",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "hunter_bbq_sauce"
+        },
+        {
           "id": "leave",
           "label": "离开",
           "cost": 0,
@@ -347,6 +403,13 @@
           "label": "刻字服务，3两：在任意一件已有道具上永久刻字",
           "cost": 3,
           "kind": "engrave"
+        },
+        {
+          "id": "buy_iron_horse_figurine",
+          "label": "铁制军马小摆件，3两：收藏品，四条腿不一样长但意外合眼缘",
+          "cost": 3,
+          "kind": "item",
+          "item_id": "iron_horse_figurine"
         },
         {
           "id": "leave",
@@ -417,6 +480,20 @@
           "cost": 5,
           "kind": "inspect",
           "distance": 3
+        },
+        {
+          "id": "buy_dry_bread",
+          "label": "干巴面包，1两：收藏品，得配点水喝，咳咳，太干啦！",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "dry_bread"
+        },
+        {
+          "id": "buy_thick_yogurt",
+          "label": "干噎酪浆，1两：收藏品，浓稠的牛乳香气，非牛顿流体",
+          "cost": 1,
+          "kind": "item",
+          "item_id": "thick_yogurt"
         },
         {
           "id": "leave",

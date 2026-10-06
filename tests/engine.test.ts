@@ -16,6 +16,8 @@ const sessions = [
   'test_chapter_transition',
   'test_saibei_scene',
   'test_saibei_finale',
+  'test_pass_shop_multiple',
+  'test_saibei_shop_items',
 ];
 
 after(async () => {
@@ -49,9 +51,14 @@ test('roleplay scene pauses the board until fixed resolution is completed', asyn
   assert.equal(next.state.players.ai.position, 6);
 
   await gameAction({ sessionId: 'test_scene', action: 'complete_scene' });
-  const optionalSkipped = await roll('test_scene', () => 6); // human 3 -> 9; optional scene 8 does not intercept
-  assert.equal(optionalSkipped.state.players.human.position, 9);
-  assert.equal(optionalSkipped.state.status, 'awaiting_shop');
+  const optionalSkipped = await roll('test_scene', () => 6); // human 3 -> 9; optional scene 8 does not intercept, but shop 4 is passed
+  assert.equal(optionalSkipped.state.players.human.position, 3);
+  assert.equal(optionalSkipped.state.status, 'awaiting_pass_shop');
+  assert.deepEqual(optionalSkipped.state.pendingPassShop?.shopPositions, [4]);
+
+  const continued = await gameAction({ sessionId: 'test_scene', action: 'continue_move' });
+  assert.equal(continued.state.players.human.position, 9);
+  assert.equal(continued.state.status, 'awaiting_shop');
 });
 
 test('function cell deducts money and adds the selected item', async () => {
@@ -327,9 +334,19 @@ test('Saibei uses the same core/optional scene interception rules', async () => 
   after.currentPlayer = 'human';
   after.resolvedScenes = [3];
   await saveState(after);
-  const optionalSkipped = await roll('test_saibei_scene', () => 6); // 3 -> 9; optional 6/8 do not intercept
-  assert.equal(optionalSkipped.state.players.human.position, 9);
-  assert.equal(optionalSkipped.state.status, 'awaiting_shop');
+  const optionalSkipped = await roll('test_saibei_scene', () => 6); // 3 -> 9; optional 6/8 do not intercept, shop 4 is passed
+  assert.equal(optionalSkipped.state.players.human.position, 3);
+  assert.equal(optionalSkipped.state.status, 'awaiting_pass_shop');
+  assert.deepEqual(optionalSkipped.state.pendingPassShop?.shopPositions, [4]);
+
+  const stopped = await gameAction({
+    sessionId: 'test_saibei_scene',
+    action: 'stop_at_shop',
+    shopPosition: 4,
+  });
+  assert.equal(stopped.state.players.human.position, 4);
+  assert.equal(stopped.state.status, 'awaiting_shop');
+  assert.match(stopped.text, /北岸马市/);
 });
 
 test('Saibei finale awards its collectible and points toward Jiangnan', async () => {
@@ -357,4 +374,75 @@ test('Saibei finale awards its collectible and points toward Jiangnan', async ()
   assert.match(completed.text, /一枝梅花/);
   assert.match(completed.text, /可待/);
   assert.match(completed.text, /江南终局/);
+});
+
+
+test('passing multiple function cells lets the player choose exactly one shop or skip them all', async () => {
+  await newGame({
+    sessionId: 'test_pass_shop_multiple',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+  const state = await getGameState('test_pass_shop_multiple');
+  state.players.human.position = 19;
+  state.players.ai.position = 10;
+  state.currentPlayer = 'human';
+  state.resolvedScenes = [3, 6, 16, 22];
+  await saveState(state);
+
+  const passed = await roll('test_pass_shop_multiple', () => 6); // 19 -> 25, passing shops 20 and 24
+  assert.equal(passed.state.status, 'awaiting_pass_shop');
+  assert.equal(passed.state.players.human.position, 19);
+  assert.deepEqual(passed.state.pendingPassShop?.shopPositions, [20, 24]);
+  assert.match(passed.text, /第20格【山间酒肆】/);
+  assert.match(passed.text, /第24格【老铁匠铺】/);
+
+  const stopped = await gameAction({
+    sessionId: 'test_pass_shop_multiple',
+    action: 'stop_at_shop',
+    player: 'human',
+    shopPosition: 24,
+  });
+  assert.equal(stopped.state.status, 'awaiting_shop');
+  assert.equal(stopped.state.players.human.position, 24);
+  assert.equal(stopped.state.pendingPassShop, undefined);
+
+  const left = await gameAction({
+    sessionId: 'test_pass_shop_multiple',
+    action: 'buy',
+    optionId: 'leave',
+  });
+  assert.equal(left.state.status, 'active');
+  assert.equal(left.state.currentPlayer, 'ai');
+  assert.equal(left.state.players.human.position, 24);
+});
+
+test('Saibei interactive shop items are purchasable and purchase text/state are preserved', async () => {
+  await newGame({
+    sessionId: 'test_saibei_shop_items',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+  const state = await getGameState('test_saibei_shop_items');
+  state.chapterId = 'saibei';
+  state.players.human.position = 20;
+  state.players.human.money = 30;
+  state.currentPlayer = 'human';
+  state.status = 'awaiting_shop';
+  state.pendingShop = { cellPosition: 20, player: 'human' };
+  await saveState(state);
+
+  const gloves = await gameAction({
+    sessionId: 'test_saibei_shop_items',
+    action: 'buy',
+    optionId: 'buy_ugly_fur_gloves',
+  });
+  assert.equal(gloves.state.players.human.money, 28);
+  assert.equal(gloves.state.players.human.inventory.some((x) => x.itemId === 'ugly_fur_gloves'), true);
+  assert.equal(gloves.state.players.human.wornItems.includes('ugly_fur_gloves'), true);
+  assert.match(gloves.text, /丑。但是暖和/);
 });
