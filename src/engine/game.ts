@@ -15,9 +15,9 @@ import type {
   ShopCell,
 } from './types.js';
 
-const GAME_VERSION = '0.2.2';
-const NEXT_CHAPTER: Record<string, string | undefined> = { zhongyuan: 'saibei', saibei: undefined };
-const UPCOMING_CHAPTER_NAME: Record<string, string | undefined> = { saibei: '第三章：江南终局' };
+const GAME_VERSION = '0.3.0-dev';
+const NEXT_CHAPTER: Record<string, string | undefined> = { zhongyuan: 'saibei', saibei: 'jiangnan', jiangnan: undefined };
+const UPCOMING_CHAPTER_NAME: Record<string, string | undefined> = {};
 
 type Rng = (min: number, maxExclusive: number) => number;
 const defaultRng: Rng = (min, maxExclusive) => randomInt(min, maxExclusive);
@@ -925,7 +925,7 @@ export async function summarizeGame(sessionId: string): Promise<string> {
 }
 
 export async function chapterOverview(): Promise<string> {
-  const chapters = await Promise.all(['zhongyuan', 'saibei'].map((id) => loadChapter(id)));
+  const chapters = await Promise.all(['zhongyuan', 'saibei', 'jiangnan'].map((id) => loadChapter(id)));
   return chapters
     .map((chapter) => {
       const counts = chapter.cells.reduce<Record<string, number>>((acc, cell) => {
