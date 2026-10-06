@@ -3,6 +3,7 @@ import { after, test } from 'node:test';
 import { rm } from 'node:fs/promises';
 import { gameAction, getGameState, newGame, roll } from '../src/engine/game.js';
 import { saveState } from '../src/engine/store.js';
+import { loadChapter } from '../src/engine/content.js';
 
 const sessions = [
   'test_scene',
@@ -18,6 +19,8 @@ const sessions = [
   'test_saibei_finale',
   'test_pass_shop_multiple',
   'test_saibei_shop_items',
+  'test_jiangnan_transition',
+  'test_jiangnan_finale',
 ];
 
 after(async () => {
@@ -445,4 +448,92 @@ test('Saibei interactive shop items are purchasable and purchase text/state are 
   assert.equal(gloves.state.players.human.inventory.some((x) => x.itemId === 'ugly_fur_gloves'), true);
   assert.equal(gloves.state.players.human.wornItems.includes('ugly_fur_gloves'), true);
   assert.match(gloves.text, /丑。但是暖和/);
+});
+
+
+test('Jiangnan map keeps the 36-cell chapter structure and six core scenes', async () => {
+  const chapter = await loadChapter('jiangnan');
+  assert.equal(chapter.length, 36);
+  assert.equal(chapter.cells.length, 36);
+  assert.deepEqual(chapter.cells.map((cell) => cell.position), Array.from({ length: 36 }, (_, index) => index + 1));
+
+  const counts = chapter.cells.reduce<Record<string, number>>((acc, cell) => {
+    const key = cell.type === 'finale' ? 'scene' : cell.type;
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  assert.equal(counts.scene, 14);
+  assert.equal(counts.light, 8);
+  assert.equal(counts.shop, 6);
+  assert.equal(counts.landmark, 4);
+  assert.equal(counts.rhythm, 4);
+
+  const core = chapter.cells
+    .filter((cell) => cell.type === 'scene' && cell.scene_mode === 'core')
+    .map((cell) => cell.position);
+  assert.deepEqual(core, [14, 25, 29, 33, 34, 35]);
+});
+
+test('Saibei can transition into Jiangnan and preserve persistent player state', async () => {
+  await newGame({
+    sessionId: 'test_jiangnan_transition',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const state = await getGameState('test_jiangnan_transition');
+  state.chapterId = 'saibei';
+  state.status = 'chapter_complete';
+  state.players.human.money = 19;
+  state.players.human.inventory.push({ itemId: 'saibei_horse_bell', count: 1 });
+  state.players.human.position = 36;
+  state.players.ai.position = 36;
+  state.players.human.finished = true;
+  state.players.ai.finished = true;
+  state.resolvedScenes = [3, 11, 16, 22, 27, 33, 36];
+  await saveState(state);
+
+  const next = await gameAction({ sessionId: 'test_jiangnan_transition', action: 'start_next_chapter' });
+  assert.equal(next.state.chapterId, 'jiangnan');
+  assert.equal(next.state.status, 'active');
+  assert.equal(next.state.players.human.position, 1);
+  assert.equal(next.state.players.ai.position, 1);
+  assert.equal(next.state.players.human.money, 19);
+  assert.equal(next.state.players.human.inventory.some((x) => x.itemId === 'saibei_horse_bell'), true);
+  assert.match(next.text, /第三章：江南终局/);
+  assert.match(next.text, /苏州城里|姑苏/);
+});
+
+test('Jiangnan finale awards its collectible and ends the full game', async () => {
+  await newGame({
+    sessionId: 'test_jiangnan_finale',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const state = await getGameState('test_jiangnan_finale');
+  state.chapterId = 'jiangnan';
+  state.players.human.position = 35;
+  state.players.ai.position = 35;
+  state.currentPlayer = 'human';
+  state.resolvedScenes = [14, 25, 29, 33, 34, 35];
+  await saveState(state);
+
+  const first = await roll('test_jiangnan_finale', () => 1);
+  assert.equal(first.state.players.human.inventory.some((x) => x.itemId === 'jiangnan_plum_note'), true);
+
+  const second = await roll('test_jiangnan_finale', () => 1);
+  assert.equal(second.state.status, 'awaiting_scene');
+  assert.equal(second.state.pendingScene?.cellPosition, 36);
+
+  const completed = await gameAction({ sessionId: 'test_jiangnan_finale', action: 'complete_scene' });
+  assert.equal(completed.state.status, 'chapter_complete');
+  assert.match(completed.text, /慕容镜/);
+  assert.match(completed.text, /再也没有出过鞘/);
+  assert.match(completed.text, /江湖棋局/);
+  assert.match(completed.text, /当前可玩章节已全部完成/);
 });
