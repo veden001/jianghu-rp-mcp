@@ -22,6 +22,7 @@ const sessions = [
   'test_jiangnan_transition',
   'test_jiangnan_finale',
   'test_jiangnan_sync',
+  'test_collectible_gift',
 ];
 
 after(async () => {
@@ -578,4 +579,31 @@ test('Jiangnan continuous endgame scenes synchronize both player positions', asy
   const resolved = await gameAction({ sessionId: 'test_jiangnan_sync', action: 'complete_scene' });
   assert.equal(resolved.state.players.human.position, 25);
   assert.equal(resolved.state.players.ai.position, 25);
+});
+
+
+test('all collectibles can be gifted even without an explicit giftable flag', async () => {
+  await newGame({
+    sessionId: 'test_collectible_gift',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const state = await getGameState('test_collectible_gift');
+  state.players.human.inventory.push({ itemId: 'jiangnan_plum_note', count: 1 });
+  await saveState(state);
+
+  const gifted = await gameAction({
+    sessionId: 'test_collectible_gift',
+    action: 'gift_item',
+    player: 'human',
+    targetPlayer: 'ai',
+    itemId: 'jiangnan_plum_note',
+  });
+
+  assert.equal(gifted.state.players.human.inventory.some((x) => x.itemId === 'jiangnan_plum_note'), false);
+  assert.equal(gifted.state.players.ai.inventory.some((x) => x.itemId === 'jiangnan_plum_note'), true);
+  assert.match(gifted.text, /送给了/);
 });
