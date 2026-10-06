@@ -36,11 +36,26 @@
   {
     "id": "shangguan_poems",
     "name": "上官昭容诗集",
-    "description": "一本上官昭容诗集。使用时可指定1至6之间的一个点数，作为下一次d6的基础点数。",
+    "description": "一本上官昭容诗集。使用时可指定1至6之间的一个点数，作为下一次d6的基础点数。使用后不会消失，而会失去骰点效果并转为收藏品。",
     "consumable": true,
     "effect": {
       "choose_next_roll": true
-    }
+    },
+    "transform_on_use": "shangguan_poems_keepsake"
+  },
+  {
+    "id": "shangguan_poems_keepsake",
+    "name": "上官昭容诗集",
+    "description": "已经用过一次的上官昭容诗集。神奇的骰点效果已经消失，但书还好端端留在手里，如今只是一件可以翻阅、赠送和留作纪念的收藏品。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "你又翻了翻这本上官昭容诗集。没有骰点奇迹发生，只有纸页轻轻响了一声。"
+    },
+    "effect": {}
   },
   {
     "id": "nuo_mask",
