@@ -38,6 +38,7 @@ export interface ItemDefinition {
   consumable: boolean;
   collectible?: boolean;
   purchase_text?: string;
+  transform_on_use?: string;
   interaction?: ItemInteraction;
   effect: ItemEffect;
 }
