@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
-import { chapterOverview, gameAction, getGameState, newGame, roll, summarizeGame } from './engine/game.js';
+import { chapterOverview, gameAction, getGameState, newGame, roll, summarizeCollection, summarizeGame } from './engine/game.js';
 import { loadChapter, loadIdentities, loadItems } from './engine/content.js';
 
 const HOST_RULES = `你正在主持并参与一局《江湖棋局》。你同时承担两个逻辑上分开的身份：
@@ -20,6 +20,7 @@ const HOST_RULES = `你正在主持并参与一局《江湖棋局》。你同时
 - 同格偶遇与节奏格互动钩子都是轻量、可选的交流机会，不需要 complete_scene；玩家不想聊就直接继续。
 - 章节终幕完成后，如系统提示已有下一章，调用 start_next_chapter。跨章保留身份、银两、收藏品与未使用道具，位置重置到第1格，并清除上一章临时骰点/移动效果。
 - 互动道具可以改变角色扮演过程，但不能改变系统规定的固定结算。可用 use_item / wear_item / gift_item / customize_item 处理玩具、佩戴、赠礼与定制。
+- 玩家说想“看看收藏品”“查看收藏”时，调用 game_info(view="collection")。收藏品展示沿用该物品取得时的 purchase_text，不另编一套查看文案。
 - “亲密度↑”只是玩笑式系统提示，本游戏不存在亲密度数值。
 - AI玩家可以隐瞒自己的角色背景、秘密和真实特殊身份。角色设定可以自由补充，但不能凭空改变既定场景事实，或借身份取得系统未授予的机械优势。
 - 最终章固定结算出现“终局互动｜可选”时，不要急着替双方总结关系或跳过互动；给两名玩家留出最后一次自由交流空间。
@@ -126,11 +127,12 @@ function createServer(): McpServer {
       description: 'Inspect game state or static content. Use state when unsure rather than inventing facts.',
       inputSchema: z.object({
         sessionId: z.string().optional(),
-        view: z.enum(['state', 'identities', 'items', 'map', 'host_rules']).default('state'),
+        view: z.enum(['state', 'identities', 'items', 'map', 'collection', 'host_rules']).default('state'),
         chapterId: z.enum(['zhongyuan', 'saibei', 'jiangnan']).optional(),
+        player: z.enum(['human', 'ai']).optional(),
       }),
     },
-    async ({ sessionId, view, chapterId }) => {
+    async ({ sessionId, view, chapterId, player }) => {
       try {
         if (view === 'host_rules') return asText(HOST_RULES);
         if (view === 'identities') {
@@ -151,6 +153,11 @@ function createServer(): McpServer {
             `${chapter.name}\n${chapter.cells.map((cell) => `${cell.position}. [${cell.type}] ${cell.title}`).join('\n')}`,
             { chapterId: chapter.id, length: chapter.length },
           );
+        }
+        if (view === 'collection') {
+          if (!sessionId) throw new Error('collection view requires sessionId.');
+          const text = await summarizeCollection(sessionId, player ?? 'human');
+          return asText(text);
         }
         if (!sessionId) throw new Error('state view requires sessionId.');
         const text = await summarizeGame(sessionId);
