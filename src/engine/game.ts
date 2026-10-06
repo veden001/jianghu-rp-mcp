@@ -216,6 +216,22 @@ function inventoryNames(player: PlayerState, items: ItemDefinition[]): string[] 
   });
 }
 
+function formatShopOption(
+  option: ShopCell['options'][number],
+  index: number,
+  items: ItemDefinition[],
+): string {
+  const marker = String.fromCharCode(65 + index);
+  if (option.kind === 'item' && option.item_id) {
+    const def = items.find((entry) => entry.id === option.item_id);
+    const name = def?.name ?? option.label;
+    const price = option.cost > 0 ? `${option.cost}两` : '免费';
+    const description = def?.description?.trim();
+    return `${marker}. 【${name}】${price}${description ? `\n${description}` : ''} [${option.id}]`;
+  }
+  return `${marker}. ${option.label} [${option.id}]`;
+}
+
 function sameSpaceHook(
   state: GameState,
   playerId: PlayerId,
@@ -300,7 +316,7 @@ async function resolveLanding(
     state.status = 'awaiting_shop';
     state.pendingShop = { cellPosition: cell.position, player: playerId };
     out.push(cell.text);
-    out.push(...cell.options.map((option, index) => `${String.fromCharCode(65 + index)}. ${option.label} [${option.id}]`));
+    out.push(...cell.options.map((option, index) => formatShopOption(option, index, items)));
     return out;
   }
 
@@ -654,7 +670,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     const lines = [
       `${player.name}选择在途经的第${cell.position}格【${cell.title}】停留。`,
       cell.text,
-      ...cell.options.map((option, index) => `${String.fromCharCode(65 + index)}. ${option.label} [${option.id}]`),
+      ...cell.options.map((option, index) => formatShopOption(option, index, items)),
     ];
     text = lines.join('\n\n');
   } else if (input.action === 'continue_move') {
