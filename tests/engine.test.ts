@@ -437,41 +437,57 @@ test('passing multiple function cells visits each shop sequentially and resumes 
   assert.deepEqual(passed.state.pendingPassShop?.shopPositions, [24]);
   assert.match(passed.text, /第20格【山间酒肆】/);
 
-  const skippedFirst = await gameAction({
+  const firstShop = await gameAction({
     sessionId: 'test_pass_shop_multiple',
-    action: 'continue_move',
+    action: 'stop_at_shop',
     player: 'human',
+    shopPosition: 20,
   });
-  assert.equal(skippedFirst.state.status, 'awaiting_pass_shop');
-  assert.equal(skippedFirst.state.players.human.position, 24);
-  assert.equal(skippedFirst.state.pendingPassShop?.currentShopPosition, 24);
+  assert.equal(firstShop.state.status, 'awaiting_shop');
+  assert.equal(firstShop.state.pendingPassShop?.currentShopPosition, 20);
 
-  const stopped = await gameAction({
+  const wine = await gameAction({
+    sessionId: 'test_pass_shop_multiple',
+    action: 'buy',
+    optionId: 'buy_wine',
+  });
+  assert.equal(wine.state.status, 'awaiting_shop');
+  assert.equal(wine.state.players.human.inventory.some((x) => x.itemId === 'wine'), true);
+
+  const leftFirst = await gameAction({
+    sessionId: 'test_pass_shop_multiple',
+    action: 'buy',
+    optionId: 'leave',
+  });
+  assert.equal(leftFirst.state.status, 'awaiting_pass_shop');
+  assert.equal(leftFirst.state.players.human.position, 24);
+  assert.equal(leftFirst.state.pendingPassShop?.currentShopPosition, 24);
+
+  const secondShop = await gameAction({
     sessionId: 'test_pass_shop_multiple',
     action: 'stop_at_shop',
     player: 'human',
     shopPosition: 24,
   });
-  assert.equal(stopped.state.status, 'awaiting_shop');
-  assert.equal(stopped.state.players.human.position, 24);
-  assert.equal(stopped.state.pendingPassShop?.currentShopPosition, 24);
+  assert.equal(secondShop.state.status, 'awaiting_shop');
+  assert.equal(secondShop.state.pendingPassShop?.currentShopPosition, 24);
 
-  const bought = await gameAction({
+  const hairpin = await gameAction({
     sessionId: 'test_pass_shop_multiple',
     action: 'buy',
     optionId: 'buy_iron_lotus_hairpin',
   });
-  assert.equal(bought.state.status, 'awaiting_shop');
-  assert.equal(bought.state.players.human.inventory.some((x) => x.itemId === 'iron_lotus_hairpin'), true);
+  assert.equal(hairpin.state.status, 'awaiting_shop');
+  assert.equal(hairpin.state.players.human.inventory.some((x) => x.itemId === 'iron_lotus_hairpin'), true);
 
-  const left = await gameAction({
+  const leftSecond = await gameAction({
     sessionId: 'test_pass_shop_multiple',
     action: 'buy',
     optionId: 'leave',
   });
-  assert.equal(left.state.players.human.position, 25);
-  assert.equal(left.state.status, 'awaiting_scene');
-  assert.equal(left.state.pendingPassShop, undefined);
+  assert.equal(leftSecond.state.players.human.position, 25);
+  assert.equal(leftSecond.state.status, 'awaiting_scene');
+  assert.equal(leftSecond.state.pendingPassShop, undefined);
 });
 
 test('Saibei interactive shop items are purchasable and purchase text/state are preserved', async () => {
