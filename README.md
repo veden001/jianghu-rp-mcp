@@ -93,7 +93,7 @@ AI 不负责决定硬规则，也不负责给角色扮演打分。引擎已经�
 game_action(action="start_next_chapter")
 ```
 
-即可进入「第二章：塞北逐剑」。跨章时：
+即可进入下一章。第一章完成后进入「第二章：塞北逐剑」，第二章完成后进入「第三章：江南终局」。跨章时：
 
 - 保留双方身份与伪装；
 - 保留银两、收藏品、刻字/定制信息与未使用道具；
@@ -136,7 +136,9 @@ chapters/
 │   ├── map.json
 │   └── items.json
 └── chapter-3-jiangnan/
-    └── README.md        # 第三章规划中
+    ├── README.md
+    ├── map.json
+    └── items.json
 
 content/
 ├── identities.json
