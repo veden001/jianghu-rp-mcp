@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { rm } from 'node:fs/promises';
-import { gameAction, getGameState, newGame, roll } from '../src/engine/game.js';
+import { gameAction, getGameState, newGame, roll, summarizeCollection } from '../src/engine/game.js';
 import { saveState } from '../src/engine/store.js';
 import { loadChapter } from '../src/engine/content.js';
 
@@ -93,6 +93,8 @@ test('function cell deducts money and adds the selected item', async () => {
   });
   assert.equal(bought.state.players.human.money, 18);
   assert.equal(bought.state.players.human.inventory.find((x) => x.itemId === 'fast_boots')?.count, 1);
+  assert.match(bought.text, /购买了【快行靴】/);
+  assert.doesNotMatch(bought.text, /快行靴，12两：下一次移动额外前进2格/);
 });
 
 test('special immortal identity is random-only and requires an ordinary disguise', async () => {
@@ -195,6 +197,12 @@ test('Shangguan poetry collection can set the next d6 base result', async () => 
   assert.equal(used.state.players.human.inventory.some((x) => x.itemId === 'shangguan_poems'), false);
   assert.equal(used.state.players.human.inventory.some((x) => x.itemId === 'shangguan_poems_keepsake'), true);
   assert.match(used.text, /转为收藏品/);
+  assert.match(used.text, /景龙三年正月晦日/);
+
+  const collection = await summarizeCollection('test_poetry', 'human');
+  assert.match(collection, /【上官昭容诗集】/);
+  assert.match(collection, /景龙三年正月晦日/);
+  assert.doesNotMatch(collection, /已经用过一次的上官昭容诗集/);
 
   const rolled = await roll('test_poetry', () => 1);
   assert.match(rolled.text, /指定基础点数 5/);
