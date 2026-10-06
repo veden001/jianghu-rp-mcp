@@ -71,6 +71,17 @@ function normalizeLoadedState(state: GameState): GameState {
     if (!Array.isArray(player.wornItems)) player.wornItems = [];
     if (typeof player.effects.forcedNextRoll !== 'number') player.effects.forcedNextRoll = undefined;
   }
+  // v0.3-dev migration: older saves stored all passed shops at once and kept
+  // the piece at the movement origin. Convert that pending choice into the
+  // new sequential "currently reached shop" state.
+  if (state.pendingPassShop && !Number.isInteger(state.pendingPassShop.currentShopPosition)) {
+    const nextShop = state.pendingPassShop.shopPositions[0];
+    if (typeof nextShop === 'number') {
+      state.pendingPassShop.currentShopPosition = nextShop;
+      state.pendingPassShop.shopPositions = state.pendingPassShop.shopPositions.slice(1);
+      state.players[state.pendingPassShop.player].position = nextShop;
+    }
+  }
   return state;
 }
 
