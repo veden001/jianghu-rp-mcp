@@ -810,7 +810,15 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
         player.effects.forcedNextRoll = input.chosenRoll;
         notes.push(`下一次d6基础点数指定为 ${input.chosenRoll}`);
       }
-      if (def.consumable) removeItem(player, input.itemId);
+      if (def.consumable) {
+        removeItem(player, input.itemId);
+        if (def.transform_on_use) {
+          const transformed = items.find((entry) => entry.id === def.transform_on_use);
+          if (!transformed) throw new Error(`Unknown transform target: ${def.transform_on_use}`);
+          addItem(player, transformed.id);
+          notes.push(`【${def.name}】已转为收藏品【${transformed.name}】`);
+        }
+      }
       state.lastInteractiveUse = undefined;
       text = `使用道具【${def.name}】。${notes.join('；')}`;
     } else {
