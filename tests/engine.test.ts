@@ -189,6 +189,8 @@ test('Shangguan poetry collection can set the next d6 base result', async () => 
   });
   assert.equal(used.state.players.human.effects.forcedNextRoll, 5);
   assert.equal(used.state.players.human.inventory.some((x) => x.itemId === 'shangguan_poems'), false);
+  assert.equal(used.state.players.human.inventory.some((x) => x.itemId === 'shangguan_poems_keepsake'), true);
+  assert.match(used.text, /转为收藏品/);
 
   const rolled = await roll('test_poetry', () => 1);
   assert.match(rolled.text, /指定基础点数 5/);
