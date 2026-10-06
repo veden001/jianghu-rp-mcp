@@ -905,7 +905,8 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     if (itemCount(from, input.itemId) < 1) throw new Error('Item not in inventory.');
     const def = items.find((entry) => entry.id === input.itemId);
     if (!def) throw new Error('Unknown item.');
-    if (def.interaction?.giftable === false) throw new Error('That item cannot be gifted.');
+    const giftable = def.collectible === true || def.interaction?.giftable === true;
+    if (!giftable) throw new Error('That item cannot be gifted.');
     const moved = giftOneItem(from, to, input.itemId);
     const details = [moved.variant ? `定制：变${moved.variant}` : '', moved.engraving ? `刻字：${moved.engraving}` : ''].filter(Boolean);
     text = `${from.name}把【${def.name}】送给了${to.name}${details.length ? `（${details.join('；')}）` : ''}。`;
@@ -956,6 +957,7 @@ export async function summarizeCollection(sessionId: string, playerId: PlayerId 
     if (player.wornItems.includes(entry.itemId)) annotations.push('佩戴中');
     lines.push(`\n【${def.name}】${annotations.length ? `（${annotations.join('；')}）` : ''}`);
     lines.push(def.purchase_text?.trim() || def.description);
+    lines.push('【可赠送】可以把这件收藏品送给另一名玩家。');
   }
 
   return lines.join('\n');
