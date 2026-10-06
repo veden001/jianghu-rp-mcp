@@ -87,6 +87,7 @@ export interface SceneCell extends BaseCell {
   goal: string;
   resolution: string;
   scene_mode?: 'core' | 'optional';
+  sync_players_on_complete?: boolean;
 }
 
 export interface ShopCell extends BaseCell {
