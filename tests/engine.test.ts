@@ -81,6 +81,10 @@ test('function cell deducts money and adds the selected item', async () => {
 
   const landed = await roll('test_shop', () => 1); // 3 -> 4
   assert.equal(landed.state.status, 'awaiting_shop');
+  assert.match(landed.text, /【快行靴】12两/);
+  assert.match(landed.text, /使用后，下一次移动额外前进2格/);
+  assert.match(landed.text, /一本上官昭容诗集/);
+  assert.doesNotMatch(landed.text, /上官昭容诗集，10两：使用时可指定/);
 
   const bought = await gameAction({
     sessionId: 'test_shop',
