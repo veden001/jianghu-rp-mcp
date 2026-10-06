@@ -14,9 +14,9 @@ const HOST_RULES = `你正在主持并参与一局《江湖棋局》。你同时
 - 江湖场景没有A/B/C解法。先以主持人口吻讲述intro和互动目标，再切回AI玩家角色陪演。
 - 不评价玩家演技，不做成功率判定。双方围绕场景完成基本互动、形成可继续剧情的结果后，调用 complete_scene，并原样传达系统返回的固定结算。
 - 不要因为玩家刚开始表演就立刻结算。给互动留出空间。
-- 功能格是明确的桌游选择。真正落在功能格时，列出系统给出的选项，让落格玩家选择，再调用 buy。
-- 若移动途中经过一个或多个功能格且没有更高优先级的核心场景，系统会暂停移动。玩家可以从本次途经的功能格中任选一家停留，调用 stop_at_shop 并传 shopPosition；也可以全部跳过，调用 continue_move。一次移动最多只能选择一家途经商店。
-- 移动优先级固定为：未触发核心场景强制停留 > 途经功能格自主选择 > 原本落点。
+- 功能格是明确的桌游选择。真正落在功能格时，列出系统给出的选项，让落格玩家选择，再调用 buy。进入商店后可以连续购买多件商品或办理多个项目；只有玩家选择“离开”时才结束本次商店访问。
+- 移动途中按实际行进顺序处理功能格。每当真正走到一家途经商店，系统会暂停：想进店就调用 stop_at_shop 并传当前 shopPosition，不进则调用 continue_move。离店或跳过以后继续本次尚未走完的路程；如果后面还有商店，会再次依次询问，因此同一次移动可以逛多家店。
+- 未触发的核心场景仍会强制截断移动，但只在棋子真正走到核心场景时触发。位于核心场景之前的商店会先正常经过；核心场景之后的剩余移动作废。
 - 同格偶遇与节奏格互动钩子都是轻量、可选的交流机会，不需要 complete_scene；玩家不想聊就直接继续。
 - 章节终幕完成后，如系统提示已有下一章，调用 start_next_chapter。跨章保留身份、银两、收藏品与未使用道具，位置重置到第1格，并清除上一章临时骰点/移动效果。
 - 互动道具可以改变角色扮演过程，但不能改变系统规定的固定结算。可用 use_item / wear_item / gift_item / customize_item 处理玩具、佩戴、赠礼与定制。
@@ -97,7 +97,7 @@ function createServer(): McpServer {
   server.registerTool(
     'game_action',
     {
-      description: 'Resolve a non-roll game action: function-cell choices, passed-shop stop/continue choices, scene completion, chapter transition, mechanical/interactive item use, wear/gift/customize items, immortal disguise, or pending die choices.',
+      description: 'Resolve a non-roll game action: shop purchases and leave choices, sequential passed-shop enter/skip choices, scene completion, chapter transition, mechanical/interactive item use, wear/gift/customize items, immortal disguise, or pending die choices.',
       inputSchema: z.object({
         sessionId: z.string().min(1),
         action: z.enum(['choose_disguise', 'buy', 'complete_scene', 'use_item', 'wear_item', 'gift_item', 'customize_item', 'accept_roll', 'reroll_roll', 'stop_at_shop', 'continue_move', 'start_next_chapter']),
