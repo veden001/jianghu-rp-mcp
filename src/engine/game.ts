@@ -767,7 +767,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     const player = state.players[pending.player];
 
     if (option.kind === 'leave') {
-      const lines = [`${player.name}选择：${option.label}`];
+      const lines = [`${player.name}离开【${cell.title}】。`];
       state.pendingShop = undefined;
 
       const pendingTravel = state.pendingPassShop;
