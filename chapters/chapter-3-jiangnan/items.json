@@ -1,0 +1,16 @@
+[
+  {
+    "id": "jiangnan_plum_note",
+    "name": "姑苏梅花笺",
+    "description": "第三章率先抵达终点获得的纪念收藏品。一张压着干梅花的素笺，无属性。",
+    "consumable": false,
+    "collectible": true,
+    "interaction": {
+      "usable": true,
+      "giftable": true,
+      "use_target": "either",
+      "use_text": "你把梅花笺展开看了一眼。纸上还留着很淡的梅香。"
+    },
+    "effect": {}
+  }
+]
