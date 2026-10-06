@@ -743,19 +743,21 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     }
 
     player.money -= option.cost;
-    const lines = [`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`];
+    const lines: string[] = [];
     state.pendingShop = undefined;
     state.status = 'active';
 
     if (option.kind === 'item' && option.item_id) {
       addItem(player, option.item_id);
       const def = items.find((entry) => entry.id === option.item_id);
+      lines.push(`${player.name}购买了【${def?.name ?? option.item_id}】。`, `银两剩余：${player.money}两。`);
       if (def?.interaction?.auto_wear_on_purchase && !player.wornItems.includes(def.id)) {
         player.wornItems.push(def.id);
       }
       lines.push(`获得道具【${def?.name ?? option.item_id}】。`);
       if (def?.purchase_text) lines.push(def.purchase_text);
     } else if (option.kind === 'effect') {
+      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
       const { immediateMove, notes } = applyEffect(player, option.effect);
       lines.push(...notes);
       if (immediateMove > 0) {
@@ -766,12 +768,14 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
         return { state, text };
       }
     } else if (option.kind === 'inspect') {
+      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
       const distance = option.distance ?? 1;
       const previews = chapter.cells
         .filter((entry) => entry.position > player.position && entry.position <= player.position + distance)
         .map((entry) => `第${entry.position}格：${entry.type}【${entry.title}】`);
       lines.push(previews.length ? `前方情报：\n${previews.join('\n')}` : '前方已接近地图终点。');
     } else if (option.kind === 'identify') {
+      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
       if (!input.targetItemId) throw new Error('identify option requires targetItemId.');
       if (itemCount(player, input.targetItemId) < 1) throw new Error('You do not own that item.');
       const def = items.find((entry) => entry.id === input.targetItemId);
@@ -779,9 +783,14 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
       const verdict = def.id === 'fake_rubbing' ? '赝品' : def.collectible ? '收藏品' : '普通物品';
       lines.push(`鉴定结果：【${def.name}】属于${verdict}。${def.description}`);
     } else if (option.kind === 'engrave') {
+      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
       const def = items.find((entry) => entry.id === input.targetItemId);
       lines.push('铁匠抬头问你刻什么，你说了，铁匠面无表情地刻完了。她上班这么多年什么都见过。');
       lines.push(`【${def?.name ?? input.targetItemId}】永久刻字：「${input.customText!.trim()}」`);
+    }
+
+    if (option.kind === 'leave') {
+      lines.push(`${player.name}选择：${option.label}`);
     }
 
     if (state.status === 'active') advanceTurn(state, pending.player);
@@ -833,6 +842,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
           if (!transformed) throw new Error(`Unknown transform target: ${def.transform_on_use}`);
           addItem(player, transformed.id);
           notes.push(`【${def.name}】已转为收藏品【${transformed.name}】`);
+          if (transformed.purchase_text) notes.push(transformed.purchase_text);
         }
       }
       state.lastInteractiveUse = undefined;
@@ -923,6 +933,32 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
   appendLog(state, text);
   await saveState(state);
   return { state, text };
+}
+
+export async function summarizeCollection(sessionId: string, playerId: PlayerId = 'human'): Promise<string> {
+  const state = normalizeLoadedState(await loadState(sessionId));
+  const items = await loadItems();
+  const player = state.players[playerId];
+
+  const owned = player.inventory
+    .map((entry) => ({ entry, def: items.find((item) => item.id === entry.itemId) }))
+    .filter(({ def }) => Boolean(def?.collectible));
+
+  if (owned.length === 0) return `${player.name}当前还没有收藏品。`;
+
+  const lines = [`【${player.name}的收藏品】`];
+  for (const { entry, def } of owned) {
+    if (!def) continue;
+    const annotations: string[] = [];
+    if (entry.count > 1) annotations.push(`×${entry.count}`);
+    if (entry.variant) annotations.push(`定制：变${entry.variant}`);
+    if (entry.engraving) annotations.push(`刻字：${entry.engraving}`);
+    if (player.wornItems.includes(entry.itemId)) annotations.push('佩戴中');
+    lines.push(`\n【${def.name}】${annotations.length ? `（${annotations.join('；')}）` : ''}`);
+    lines.push(def.purchase_text?.trim() || def.description);
+  }
+
+  return lines.join('\n');
 }
 
 export async function summarizeGame(sessionId: string): Promise<string> {
