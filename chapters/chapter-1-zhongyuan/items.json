@@ -50,12 +50,10 @@
     "consumable": false,
     "collectible": true,
     "interaction": {
-      "usable": true,
-      "giftable": true,
-      "use_target": "either",
-      "use_text": "你翻开这本诗集，脑海中渐渐浮现出一个华丽盛大的场景：景龙三年正月晦日，中宗幸昆明池赋诗，群臣应制百余篇，帐殿前结彩楼，命上官昭容选一篇为新翻御制曲，从臣悉集其下，须臾，纸落如飞，各认其名怀之……"
+      "giftable": true
     },
-    "effect": {}
+    "effect": {},
+    "purchase_text": "你翻开这本诗集，脑海中渐渐浮现出一个华丽盛大的场景：景龙三年正月晦日，中宗幸昆明池赋诗，群臣应制百余篇，帐殿前结彩楼，命上官昭容选一篇为新翻御制曲，从臣悉集其下，须臾，纸落如飞，各认其名怀之……"
   },
   {
     "id": "nuo_mask",
