@@ -534,7 +534,7 @@ test('Jiangnan finale awards its collectible and ends the full game', async () =
   const completed = await gameAction({ sessionId: 'test_jiangnan_finale', action: 'complete_scene' });
   assert.equal(completed.state.status, 'chapter_complete');
   assert.match(completed.text, /慕容镜/);
-  assert.match(completed.text, /再也没有出过鞘/);
+  assert.match(completed.text, /再没有出过鞘/);
   assert.match(completed.text, /江湖棋局/);
   assert.match(completed.text, /当前可玩章节已全部完成/);
 });
