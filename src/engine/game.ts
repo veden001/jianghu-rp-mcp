@@ -611,6 +611,11 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     if (cell.type !== 'scene' && cell.type !== 'finale') throw new Error('Pending cell is not a scene.');
     text = `【固定结算】${cell.resolution}`;
     if (!state.resolvedScenes.includes(cell.position)) state.resolvedScenes.push(cell.position);
+    if (cell.sync_players_on_complete) {
+      for (const id of ['human', 'ai'] as PlayerId[]) {
+        if (!state.players[id].finished) state.players[id].position = cell.position;
+      }
+    }
     state.pendingScene = undefined;
     if (cell.type === 'finale') {
       state.status = 'chapter_complete';
