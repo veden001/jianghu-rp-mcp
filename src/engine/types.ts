@@ -159,6 +159,7 @@ export interface PendingPassShop {
   player: PlayerId;
   from: number;
   destination: number;
+  currentShopPosition: number;
   shopPositions: number[];
   reason: string;
 }
