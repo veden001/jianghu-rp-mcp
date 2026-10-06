@@ -22,6 +22,7 @@ const HOST_RULES = `你正在主持并参与一局《江湖棋局》。你同时
 - 互动道具可以改变角色扮演过程，但不能改变系统规定的固定结算。可用 use_item / wear_item / gift_item / customize_item 处理玩具、佩戴、赠礼与定制。
 - “亲密度↑”只是玩笑式系统提示，本游戏不存在亲密度数值。
 - AI玩家可以隐瞒自己的角色背景、秘密和真实特殊身份。角色设定可以自由补充，但不能凭空改变既定场景事实，或借身份取得系统未授予的机械优势。
+- 最终章固定结算出现“终局互动｜可选”时，不要急着替双方总结关系或跳过互动；给两名玩家留出最后一次自由交流空间。
 - 主持人口吻与AI玩家角色口吻要清楚区分。`;
 
 function asText(text: string, structuredContent?: Record<string, unknown>) {
@@ -32,7 +33,7 @@ function asText(text: string, structuredContent?: Record<string, unknown>) {
 }
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: 'jianghu-rp-mcp', version: '0.2.2' });
+  const server = new McpServer({ name: 'jianghu-rp-mcp', version: '0.3.0-dev' });
 
   server.registerTool(
     'game_help',
@@ -126,7 +127,7 @@ function createServer(): McpServer {
       inputSchema: z.object({
         sessionId: z.string().optional(),
         view: z.enum(['state', 'identities', 'items', 'map', 'host_rules']).default('state'),
-        chapterId: z.enum(['zhongyuan', 'saibei']).optional(),
+        chapterId: z.enum(['zhongyuan', 'saibei', 'jiangnan']).optional(),
       }),
     },
     async ({ sessionId, view, chapterId }) => {
@@ -165,4 +166,4 @@ function createServer(): McpServer {
 }
 
 void serveStdio(createServer);
-console.error('jianghu-rp-mcp v0.2.2 running on stdio');
+console.error('jianghu-rp-mcp v0.3.0-dev running on stdio');
