@@ -420,23 +420,50 @@ async function resolveMoveDestination(
   return out;
 }
 
-async function movePlayer(
+async function continueTravel(
   state: GameState,
   playerId: PlayerId,
-  spaces: number,
+  from: number,
+  destination: number,
   chapter: ChapterDefinition,
   items: ItemDefinition[],
   rng: Rng,
-  reason = '移动',
+  reason: string,
 ): Promise<string[]> {
   const player = state.players[playerId];
-  const from = player.position;
-  const rolledDestination = Math.min(chapter.length, from + Math.max(0, spaces));
-  const coreStop = firstUnresolvedCoreSceneBetween(state, chapter, from, rolledDestination);
+  const coreStop = firstUnresolvedCoreSceneBetween(state, chapter, from, destination);
+  const travelEnd = coreStop ?? destination;
 
-  // 核心场景优先级最高。只要路径上存在尚未触发的核心场景，直接停下，
-  // 不再询问途经商店。
+  // 沿实际行进顺序处理途经商店。只展示当前真正走到的这一家，
+  // 离店或跳过后再继续剩余路程，因此同一次移动可以依次经过多家商店。
+  const passShops = shopPositionsBetween(chapter, from, travelEnd);
+  if (passShops.length > 0) {
+    const currentShopPosition = passShops[0]!;
+    const cell = getCell(chapter, currentShopPosition);
+    if (cell.type !== 'shop') throw new Error('Passed function cell is not a shop.');
+
+    player.position = currentShopPosition;
+    state.status = 'awaiting_pass_shop';
+    state.pendingPassShop = {
+      player: playerId,
+      from,
+      destination,
+      currentShopPosition,
+      shopPositions: passShops.slice(1),
+      reason,
+    };
+
+    return [
+      `${reason}计划：${from} → ${destination}。`,
+      `【途经功能格】${player.name}行至第${currentShopPosition}格【${cell.title}】。`,
+      '可以进店看看，也可以直接继续赶路。若进店，买完或办完事情后仍会继续本次尚未走完的路程。',
+    ];
+  }
+
+  // 核心场景仍然会截断本次移动，但只有真正走到它时才触发；
+  // 位于核心场景之前的商店不会再被跳过。
   if (coreStop !== undefined) {
+    state.pendingPassShop = undefined;
     return resolveMoveDestination(
       state,
       playerId,
@@ -450,39 +477,32 @@ async function movePlayer(
     );
   }
 
-  // 若只是路过功能格，玩家可以从本次路径经过的商店中任选一家停留，
-  // 也可以全部跳过并继续前往原落点。真正落在商店格时仍按普通落格处理。
-  const passShops = shopPositionsBetween(chapter, from, rolledDestination);
-  if (passShops.length > 0) {
-    state.status = 'awaiting_pass_shop';
-    state.pendingPassShop = {
-      player: playerId,
-      from,
-      destination: rolledDestination,
-      shopPositions: passShops,
-      reason,
-    };
-    const shopLines = passShops.map((position) => {
-      const cell = getCell(chapter, position);
-      return `第${position}格【${cell.title}】`;
-    });
-    return [
-      `${reason}计划：${from} → ${rolledDestination}。`,
-      `【途经功能格】本次途中经过：${shopLines.join('、')}。`,
-      '你可以从这些功能格中任选一家停留，或全部跳过继续前往原落点。途经多个功能格时，本次移动最多只能选择一家。',
-    ];
-  }
-
+  state.pendingPassShop = undefined;
   return resolveMoveDestination(
     state,
     playerId,
     from,
-    rolledDestination,
+    destination,
     chapter,
     items,
     rng,
     reason,
   );
+}
+
+async function movePlayer(
+  state: GameState,
+  playerId: PlayerId,
+  spaces: number,
+  chapter: ChapterDefinition,
+  items: ItemDefinition[],
+  rng: Rng,
+  reason = '移动',
+): Promise<string[]> {
+  const player = state.players[playerId];
+  const from = player.position;
+  const rolledDestination = Math.min(chapter.length, from + Math.max(0, spaces));
+  return continueTravel(state, playerId, from, rolledDestination, chapter, items, rng, reason);
 }
 
 export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promise<{ state: GameState; text: string }> {
@@ -657,20 +677,20 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
       throw new Error('No passed-shop choice is awaiting resolution.');
     }
     const pending = state.pendingPassShop;
-    if (input.player && input.player !== pending.player) throw new Error('Only the moving player may choose a passed shop.');
+    if (input.player && input.player !== pending.player) throw new Error('Only the moving player may choose the passed shop.');
     if (!Number.isInteger(input.shopPosition)) throw new Error('stop_at_shop requires shopPosition.');
-    if (!pending.shopPositions.includes(input.shopPosition!)) throw new Error('That shop was not passed during this move.');
-    const cell = getCell(chapter, input.shopPosition!);
+    if (input.shopPosition !== pending.currentShopPosition) throw new Error('Only the shop currently reached can be entered.');
+    const cell = getCell(chapter, pending.currentShopPosition);
     if (cell.type !== 'shop') throw new Error('Selected passed cell is not a shop.');
     const player = state.players[pending.player];
     player.position = cell.position;
-    state.pendingPassShop = undefined;
     state.status = 'awaiting_shop';
     state.pendingShop = { cellPosition: cell.position, player: pending.player };
     const lines = [
-      `${player.name}选择在途经的第${cell.position}格【${cell.title}】停留。`,
+      `${player.name}走进第${cell.position}格【${cell.title}】。`,
       cell.text,
       ...cell.options.map((option, index) => formatShopOption(option, index, items)),
+      '本次进店可以连续购买多件商品；选择离开后继续尚未走完的路程。',
     ];
     text = lines.join('\n\n');
   } else if (input.action === 'continue_move') {
@@ -679,13 +699,14 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     }
     const pending = state.pendingPassShop;
     if (input.player && input.player !== pending.player) throw new Error('Only the moving player may continue this move.');
+    const player = state.players[pending.player];
     state.pendingPassShop = undefined;
     state.status = 'active';
-    const lines = [`${state.players[pending.player].name}选择不在途经商店停留，继续赶路。`];
-    lines.push(...(await resolveMoveDestination(
+    const lines = [`${player.name}没有进第${pending.currentShopPosition}格的商店，继续赶路。`];
+    lines.push(...(await continueTravel(
       state,
       pending.player,
-      pending.from,
+      player.position,
       pending.destination,
       chapter,
       items,
@@ -726,75 +747,104 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
   } else if (input.action === 'buy') {
     if (state.status !== 'awaiting_shop' || !state.pendingShop) throw new Error('No shop choice is awaiting resolution.');
     const pending = state.pendingShop;
-    if (input.player && input.player !== pending.player) throw new Error('Only the player who landed on the shop may choose.');
+    if (input.player && input.player !== pending.player) throw new Error('Only the player currently in the shop may choose.');
     if (!input.optionId) throw new Error('buy requires optionId.');
     const cell = getCell(chapter, pending.cellPosition);
     if (cell.type !== 'shop') throw new Error('Pending cell is not a shop.');
     const option = cell.options.find((entry) => entry.id === input.optionId);
     if (!option) throw new Error(`Unknown shop option: ${input.optionId}`);
     const player = state.players[pending.player];
-    if (player.money < option.cost) throw new Error(`Not enough money. Need ${option.cost}, have ${player.money}.`);
-
-    if (option.kind === 'engrave') {
-      if (!input.targetItemId || !input.customText?.trim()) throw new Error('Engraving requires targetItemId and customText.');
-      const target = singleItemEntry(player, input.targetItemId);
-      if (target.engraving) throw new Error('That item has already been engraved. Engraving cannot be undone.');
-      target.engraving = input.customText.trim();
-    }
-
-    player.money -= option.cost;
-    const lines: string[] = [];
-    state.pendingShop = undefined;
-    state.status = 'active';
-
-    if (option.kind === 'item' && option.item_id) {
-      addItem(player, option.item_id);
-      const def = items.find((entry) => entry.id === option.item_id);
-      lines.push(`${player.name}购买了【${def?.name ?? option.item_id}】。`, `银两剩余：${player.money}两。`);
-      if (def?.interaction?.auto_wear_on_purchase && !player.wornItems.includes(def.id)) {
-        player.wornItems.push(def.id);
-      }
-      lines.push(`获得道具【${def?.name ?? option.item_id}】。`);
-      if (def?.purchase_text) lines.push(def.purchase_text);
-    } else if (option.kind === 'effect') {
-      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
-      const { immediateMove, notes } = applyEffect(player, option.effect);
-      lines.push(...notes);
-      if (immediateMove > 0) {
-        lines.push(...(await movePlayer(state, pending.player, immediateMove, chapter, items, rng, '功能格移动')));
-        text = lines.join('\n\n');
-        appendLog(state, text);
-        await saveState(state);
-        return { state, text };
-      }
-    } else if (option.kind === 'inspect') {
-      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
-      const distance = option.distance ?? 1;
-      const previews = chapter.cells
-        .filter((entry) => entry.position > player.position && entry.position <= player.position + distance)
-        .map((entry) => `第${entry.position}格：${entry.type}【${entry.title}】`);
-      lines.push(previews.length ? `前方情报：\n${previews.join('\n')}` : '前方已接近地图终点。');
-    } else if (option.kind === 'identify') {
-      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
-      if (!input.targetItemId) throw new Error('identify option requires targetItemId.');
-      if (itemCount(player, input.targetItemId) < 1) throw new Error('You do not own that item.');
-      const def = items.find((entry) => entry.id === input.targetItemId);
-      if (!def) throw new Error('Unknown item.');
-      const verdict = def.id === 'fake_rubbing' ? '赝品' : def.collectible ? '收藏品' : '普通物品';
-      lines.push(`鉴定结果：【${def.name}】属于${verdict}。${def.description}`);
-    } else if (option.kind === 'engrave') {
-      lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
-      const def = items.find((entry) => entry.id === input.targetItemId);
-      lines.push('铁匠抬头问你刻什么，你说了，铁匠面无表情地刻完了。她上班这么多年什么都见过。');
-      lines.push(`【${def?.name ?? input.targetItemId}】永久刻字：「${input.customText!.trim()}」`);
-    }
 
     if (option.kind === 'leave') {
-      lines.push(`${player.name}选择：${option.label}`);
-    }
+      const lines = [`${player.name}选择：${option.label}`];
+      state.pendingShop = undefined;
 
-    if (state.status === 'active') advanceTurn(state, pending.player);
-    text = lines.join('\n\n');
+      const pendingTravel = state.pendingPassShop;
+      if (pendingTravel?.player === pending.player) {
+        state.pendingPassShop = undefined;
+        state.status = 'active';
+        lines.push('离开商店，继续本次尚未走完的路程。');
+        lines.push(...(await continueTravel(
+          state,
+          pending.player,
+          player.position,
+          pendingTravel.destination,
+          chapter,
+          items,
+          rng,
+          pendingTravel.reason,
+        )));
+      } else {
+        state.status = 'active';
+        advanceTurn(state, pending.player);
+        lines.push(`离开【${cell.title}】。下一回合：${state.players[state.currentPlayer].name}。`);
+      }
+
+      text = lines.join('\n\n');
+    } else {
+      if (player.money < option.cost) throw new Error(`Not enough money. Need ${option.cost}, have ${player.money}.`);
+
+      if (option.kind === 'engrave') {
+        if (!input.targetItemId || !input.customText?.trim()) throw new Error('Engraving requires targetItemId and customText.');
+        const target = singleItemEntry(player, input.targetItemId);
+        if (target.engraving) throw new Error('That item has already been engraved. Engraving cannot be undone.');
+        target.engraving = input.customText.trim();
+      }
+
+      player.money -= option.cost;
+      const lines: string[] = [];
+
+      if (option.kind === 'item' && option.item_id) {
+        addItem(player, option.item_id);
+        const def = items.find((entry) => entry.id === option.item_id);
+        lines.push(`${player.name}购买了【${def?.name ?? option.item_id}】。`, `银两剩余：${player.money}两。`);
+        if (def?.interaction?.auto_wear_on_purchase && !player.wornItems.includes(def.id)) {
+          player.wornItems.push(def.id);
+        }
+        lines.push(`获得道具【${def?.name ?? option.item_id}】。`);
+        if (def?.purchase_text) lines.push(def.purchase_text);
+      } else if (option.kind === 'effect') {
+        lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
+        const { immediateMove, notes } = applyEffect(player, option.effect);
+        lines.push(...notes);
+        if (immediateMove > 0) {
+          // “立即前进”类服务会结束本次逛店，并以新的移动效果为准。
+          state.pendingShop = undefined;
+          state.pendingPassShop = undefined;
+          state.status = 'active';
+          lines.push(...(await movePlayer(state, pending.player, immediateMove, chapter, items, rng, '功能格移动')));
+          text = lines.join('\n\n');
+          appendLog(state, text);
+          await saveState(state);
+          return { state, text };
+        }
+      } else if (option.kind === 'inspect') {
+        lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
+        const distance = option.distance ?? 1;
+        const previews = chapter.cells
+          .filter((entry) => entry.position > player.position && entry.position <= player.position + distance)
+          .map((entry) => `第${entry.position}格：${entry.type}【${entry.title}】`);
+        lines.push(previews.length ? `前方情报：\n${previews.join('\n')}` : '前方已接近地图终点。');
+      } else if (option.kind === 'identify') {
+        lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
+        if (!input.targetItemId) throw new Error('identify option requires targetItemId.');
+        if (itemCount(player, input.targetItemId) < 1) throw new Error('You do not own that item.');
+        const def = items.find((entry) => entry.id === input.targetItemId);
+        if (!def) throw new Error('Unknown item.');
+        const verdict = def.id === 'fake_rubbing' ? '赝品' : def.collectible ? '收藏品' : '普通物品';
+        lines.push(`鉴定结果：【${def.name}】属于${verdict}。${def.description}`);
+      } else if (option.kind === 'engrave') {
+        lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
+        const def = items.find((entry) => entry.id === input.targetItemId);
+        lines.push('铁匠抬头问你刻什么，你说了，铁匠面无表情地刻完了。她上班这么多年什么都见过。');
+        lines.push(`【${def?.name ?? input.targetItemId}】永久刻字：「${input.customText!.trim()}」`);
+      }
+
+      state.status = 'awaiting_shop';
+      state.pendingShop = pending;
+      lines.push(`【仍在${cell.title}】可以继续购买或办理其他项目；想走时选择“离开”。`);
+      text = lines.join('\n\n');
+    }
   } else if (input.action === 'use_item') {
     const playerId = input.player ?? state.currentPlayer;
     const player = state.players[playerId];
@@ -979,14 +1029,11 @@ export async function summarizeGame(sessionId: string): Promise<string> {
     lines.push(`${p.name}：第${p.position}格｜${p.money}两｜身份：${p.identity.name}${disguise}｜道具：${inventoryNames(p, items).join('、') || '无'}${p.finished ? '｜已到达终点' : ''}`);
   }
   if (state.pendingScene) lines.push(`待完成场景：第${state.pendingScene.cellPosition}格`);
-  if (state.pendingShop) lines.push(`待处理功能格：第${state.pendingShop.cellPosition}格`);
+  if (state.pendingShop) lines.push(`正在逛功能格：第${state.pendingShop.cellPosition}格；可连续购买，选择离开后才结束本次商店访问。`);
   if (state.pendingRoll) lines.push(`待决定骰子：${state.pendingRoll.die}点`);
   if (state.pendingPassShop) {
-    const labels = state.pendingPassShop.shopPositions.map((position) => {
-      const cell = getCell(chapter, position);
-      return `第${position}格【${cell.title}】`;
-    });
-    lines.push(`待决定是否途经停店：${labels.join('、')}；也可全部跳过继续到第${state.pendingPassShop.destination}格`);
+    const current = getCell(chapter, state.pendingPassShop.currentShopPosition);
+    lines.push(`当前途经第${current.position}格【${current.title}】：可进店，或跳过后继续本次移动至第${state.pendingPassShop.destination}格；若后续还有商店会依次再次询问。`);
   }
   return lines.join('\n');
 }
