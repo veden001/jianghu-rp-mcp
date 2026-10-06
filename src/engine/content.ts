@@ -15,6 +15,10 @@ const CHAPTER_CONTENT: Record<string, ChapterContentLocation> = {
     map: '../../chapters/chapter-2-saibei/map.json',
     items: '../../chapters/chapter-2-saibei/items.json',
   },
+  jiangnan: {
+    map: '../../chapters/chapter-3-jiangnan/map.json',
+    items: '../../chapters/chapter-3-jiangnan/items.json',
+  },
 };
 
 async function readJson<T>(url: URL): Promise<T> {
