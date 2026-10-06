@@ -23,6 +23,7 @@ const sessions = [
   'test_jiangnan_finale',
   'test_jiangnan_sync',
   'test_collectible_gift',
+  'test_shop_before_core',
 ];
 
 after(async () => {
@@ -56,10 +57,11 @@ test('roleplay scene pauses the board until fixed resolution is completed', asyn
   assert.equal(next.state.players.ai.position, 6);
 
   await gameAction({ sessionId: 'test_scene', action: 'complete_scene' });
-  const optionalSkipped = await roll('test_scene', () => 6); // human 3 -> 9; optional scene 8 does not intercept, but shop 4 is passed
-  assert.equal(optionalSkipped.state.players.human.position, 3);
+  const optionalSkipped = await roll('test_scene', () => 6); // human 3 -> 9; shop 4 is reached first
+  assert.equal(optionalSkipped.state.players.human.position, 4);
   assert.equal(optionalSkipped.state.status, 'awaiting_pass_shop');
-  assert.deepEqual(optionalSkipped.state.pendingPassShop?.shopPositions, [4]);
+  assert.equal(optionalSkipped.state.pendingPassShop?.currentShopPosition, 4);
+  assert.deepEqual(optionalSkipped.state.pendingPassShop?.shopPositions, []);
 
   const continued = await gameAction({ sessionId: 'test_scene', action: 'continue_move' });
   assert.equal(continued.state.players.human.position, 9);
@@ -94,8 +96,24 @@ test('function cell deducts money and adds the selected item', async () => {
   });
   assert.equal(bought.state.players.human.money, 18);
   assert.equal(bought.state.players.human.inventory.find((x) => x.itemId === 'fast_boots')?.count, 1);
+  assert.equal(bought.state.status, 'awaiting_shop');
+  assert.equal(bought.state.currentPlayer, 'human');
   assert.match(bought.text, /购买了【快行靴】/);
+  assert.match(bought.text, /仍在洛阳西市/);
   assert.doesNotMatch(bought.text, /快行靴，12两：下一次移动额外前进2格/);
+
+  const boughtAgain = await gameAction({
+    sessionId: 'test_shop',
+    action: 'buy',
+    optionId: 'buy_lucky_coin',
+  });
+  assert.equal(boughtAgain.state.players.human.money, 10);
+  assert.equal(boughtAgain.state.players.human.inventory.find((x) => x.itemId === 'lucky_coin')?.count, 1);
+  assert.equal(boughtAgain.state.status, 'awaiting_shop');
+
+  const left = await gameAction({ sessionId: 'test_shop', action: 'buy', optionId: 'leave' });
+  assert.equal(left.state.status, 'active');
+  assert.equal(left.state.currentPlayer, 'ai');
 });
 
 test('special immortal identity is random-only and requires an ordinary disguise', async () => {
@@ -353,10 +371,10 @@ test('Saibei uses the same core/optional scene interception rules', async () => 
   after.currentPlayer = 'human';
   after.resolvedScenes = [3];
   await saveState(after);
-  const optionalSkipped = await roll('test_saibei_scene', () => 6); // 3 -> 9; optional 6/8 do not intercept, shop 4 is passed
-  assert.equal(optionalSkipped.state.players.human.position, 3);
+  const optionalSkipped = await roll('test_saibei_scene', () => 6); // 3 -> 9; shop 4 is reached first
+  assert.equal(optionalSkipped.state.players.human.position, 4);
   assert.equal(optionalSkipped.state.status, 'awaiting_pass_shop');
-  assert.deepEqual(optionalSkipped.state.pendingPassShop?.shopPositions, [4]);
+  assert.equal(optionalSkipped.state.pendingPassShop?.currentShopPosition, 4);
 
   const stopped = await gameAction({
     sessionId: 'test_saibei_scene',
@@ -365,6 +383,7 @@ test('Saibei uses the same core/optional scene interception rules', async () => 
   });
   assert.equal(stopped.state.players.human.position, 4);
   assert.equal(stopped.state.status, 'awaiting_shop');
+  assert.equal(stopped.state.pendingPassShop?.currentShopPosition, 4);
   assert.match(stopped.text, /北岸马市/);
 });
 
@@ -396,7 +415,7 @@ test('Saibei finale awards its collectible and points toward Jiangnan', async ()
 });
 
 
-test('passing multiple function cells lets the player choose exactly one shop or skip them all', async () => {
+test('passing multiple function cells visits each shop sequentially and resumes the original move', async () => {
   await newGame({
     sessionId: 'test_pass_shop_multiple',
     humanIdentityMode: 'select',
@@ -411,12 +430,21 @@ test('passing multiple function cells lets the player choose exactly one shop or
   state.resolvedScenes = [3, 6, 16, 22];
   await saveState(state);
 
-  const passed = await roll('test_pass_shop_multiple', () => 6); // 19 -> 25, passing shops 20 and 24
+  const passed = await roll('test_pass_shop_multiple', () => 6); // 19 -> 25, shops 20 and 24
   assert.equal(passed.state.status, 'awaiting_pass_shop');
-  assert.equal(passed.state.players.human.position, 19);
-  assert.deepEqual(passed.state.pendingPassShop?.shopPositions, [20, 24]);
+  assert.equal(passed.state.players.human.position, 20);
+  assert.equal(passed.state.pendingPassShop?.currentShopPosition, 20);
+  assert.deepEqual(passed.state.pendingPassShop?.shopPositions, [24]);
   assert.match(passed.text, /第20格【山间酒肆】/);
-  assert.match(passed.text, /第24格【老铁匠铺】/);
+
+  const skippedFirst = await gameAction({
+    sessionId: 'test_pass_shop_multiple',
+    action: 'continue_move',
+    player: 'human',
+  });
+  assert.equal(skippedFirst.state.status, 'awaiting_pass_shop');
+  assert.equal(skippedFirst.state.players.human.position, 24);
+  assert.equal(skippedFirst.state.pendingPassShop?.currentShopPosition, 24);
 
   const stopped = await gameAction({
     sessionId: 'test_pass_shop_multiple',
@@ -426,16 +454,24 @@ test('passing multiple function cells lets the player choose exactly one shop or
   });
   assert.equal(stopped.state.status, 'awaiting_shop');
   assert.equal(stopped.state.players.human.position, 24);
-  assert.equal(stopped.state.pendingPassShop, undefined);
+  assert.equal(stopped.state.pendingPassShop?.currentShopPosition, 24);
+
+  const bought = await gameAction({
+    sessionId: 'test_pass_shop_multiple',
+    action: 'buy',
+    optionId: 'buy_iron_lotus_hairpin',
+  });
+  assert.equal(bought.state.status, 'awaiting_shop');
+  assert.equal(bought.state.players.human.inventory.some((x) => x.itemId === 'iron_lotus_hairpin'), true);
 
   const left = await gameAction({
     sessionId: 'test_pass_shop_multiple',
     action: 'buy',
     optionId: 'leave',
   });
-  assert.equal(left.state.status, 'active');
-  assert.equal(left.state.currentPlayer, 'ai');
-  assert.equal(left.state.players.human.position, 24);
+  assert.equal(left.state.players.human.position, 25);
+  assert.equal(left.state.status, 'awaiting_scene');
+  assert.equal(left.state.pendingPassShop, undefined);
 });
 
 test('Saibei interactive shop items are purchasable and purchase text/state are preserved', async () => {
@@ -463,9 +499,42 @@ test('Saibei interactive shop items are purchasable and purchase text/state are 
   assert.equal(gloves.state.players.human.money, 28);
   assert.equal(gloves.state.players.human.inventory.some((x) => x.itemId === 'ugly_fur_gloves'), true);
   assert.equal(gloves.state.players.human.wornItems.includes('ugly_fur_gloves'), true);
+  assert.equal(gloves.state.status, 'awaiting_shop');
   assert.match(gloves.text, /丑。但是暖和/);
 });
 
+
+test('a shop before an unresolved core scene is offered before the core scene interrupts movement', async () => {
+  await newGame({
+    sessionId: 'test_shop_before_core',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const state = await getGameState('test_shop_before_core');
+  state.chapterId = 'jiangnan';
+  state.players.human.position = 12;
+  state.players.ai.position = 1;
+  state.currentPlayer = 'human';
+  state.resolvedScenes = [];
+  await saveState(state);
+
+  const moved = await roll('test_shop_before_core', () => 6); // 12 -> 18, but shop 13 comes before core 14
+  assert.equal(moved.state.status, 'awaiting_pass_shop');
+  assert.equal(moved.state.players.human.position, 13);
+  assert.equal(moved.state.pendingPassShop?.currentShopPosition, 13);
+
+  const skipped = await gameAction({
+    sessionId: 'test_shop_before_core',
+    action: 'continue_move',
+    player: 'human',
+  });
+  assert.equal(skipped.state.status, 'awaiting_scene');
+  assert.equal(skipped.state.players.human.position, 14);
+  assert.equal(skipped.state.pendingScene?.cellPosition, 14);
+});
 
 test('Jiangnan map keeps the 36-cell chapter structure and six core scenes', async () => {
   const chapter = await loadChapter('jiangnan');
