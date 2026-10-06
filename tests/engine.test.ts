@@ -21,6 +21,7 @@ const sessions = [
   'test_saibei_shop_items',
   'test_jiangnan_transition',
   'test_jiangnan_finale',
+  'test_jiangnan_sync',
 ];
 
 after(async () => {
@@ -536,4 +537,31 @@ test('Jiangnan finale awards its collectible and ends the full game', async () =
   assert.match(completed.text, /再也没有出过鞘/);
   assert.match(completed.text, /江湖棋局/);
   assert.match(completed.text, /当前可玩章节已全部完成/);
+});
+
+
+test('Jiangnan continuous endgame scenes synchronize both player positions', async () => {
+  await newGame({
+    sessionId: 'test_jiangnan_sync',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const state = await getGameState('test_jiangnan_sync');
+  state.chapterId = 'jiangnan';
+  state.players.human.position = 24;
+  state.players.ai.position = 19;
+  state.currentPlayer = 'human';
+  state.resolvedScenes = [14];
+  await saveState(state);
+
+  const entered = await roll('test_jiangnan_sync', () => 6);
+  assert.equal(entered.state.status, 'awaiting_scene');
+  assert.equal(entered.state.pendingScene?.cellPosition, 25);
+
+  const resolved = await gameAction({ sessionId: 'test_jiangnan_sync', action: 'complete_scene' });
+  assert.equal(resolved.state.players.human.position, 25);
+  assert.equal(resolved.state.players.ai.position, 25);
 });
