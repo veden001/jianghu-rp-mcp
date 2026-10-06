@@ -12,5 +12,98 @@
       "use_text": "你把梅花笺展开看了一眼。纸上还留着很淡的梅香。"
     },
     "effect": {}
+  },
+  {
+    "id": "storyteller_block",
+    "name": "说书人的惊堂木",
+    "description": "收藏品。茶楼为什么会卖这个？",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "很诡异。但你还是买了。茶博士挠了挠头告诉你，这玩意儿可以用来敲人脑壳，很疼。你陷入了沉思。不管怎样，上面雕刻的花鸟图案倒是很精美。",
+    "effect": {}
+  },
+  {
+    "id": "imit_beyuan_dragon_phoenix_tea",
+    "name": "仿·北苑龙凤团茶",
+    "description": "收藏品。御贡之物亦有民间仿冒版。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你定睛看去，仔细辨认着茶饼上的图样，怎么也看不出龙凤之型——有没有搞错啊！？这，这明明是蚯蚓和母鸡啊！！！",
+    "effect": {}
+  },
+  {
+    "id": "last_plum_branch",
+    "name": "一枝将落未落的梅",
+    "description": "收藏品。花贩说这是今年最后一枝好梅了。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你端详了一下这枝梅花。快谢了，但还有一两朵挂在枝上没舍得落。花贩说要是好好养，还能再开几日。你小心翼翼地揣着走了。",
+    "effect": {}
+  },
+  {
+    "id": "glazed_vase_hairpin",
+    "name": "琉璃簪",
+    "description": "收藏品。青蓝色，簪身做成了小花瓶的样子，可以往里面插小枝的鲜花，一并戴在发间。适合送给女孩子。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "少年多意气，颜貌比于花。",
+    "interaction": {
+      "wearable": true
+    },
+    "effect": {}
+  },
+  {
+    "id": "jianlu",
+    "name": "鉴录",
+    "description": "收藏品。鉴即镜，这本书里写了一位剑仙在成为剑仙之前的故事。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你翻开了这本小册子。\n\n梅园，乃是姑苏慕容氏世代栖居之所。传闻这一支慕容氏族人，乃是十六国时期慕容鲜卑王族之后。现今于本朝亦是十分显赫的官宦家族，富贵风流闻名姑苏。本家某代家主诞育一子，冰雪聪明，仪容非凡，师承一江湖侠士，十余年来习得精深剑法。女郎年岁渐长，一日闻得母亲要将自己许配给高官公子，当即盗取族内密宝名剑，而后星夜远遁，一人一剑一路北上。\n\n寻常人入江湖，是经历风霜摧折磨洗、见见世面，而这位女郎，却是彼时的江湖人需要认识的“世面”。从姑苏到洛阳，从洛阳到塞北，没有人胜过她，哪怕是天下第一的圣僧瞿昙也败在了她的剑下。\n\n故事在塞北的对决后戛然而止。",
+    "effect": {}
+  },
+  {
+    "id": "get_rich_manual",
+    "name": "致富秘籍",
+    "description": "收藏品。摊主的眼神十分具有煽动性，你怀疑买了这本小册子只会让摊主致富。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你翻开了这本小册子。\n\n“金价上涨时，你说你手里没金条，铜价上涨时，你说你没铜条。现在！油价蹭蹭上涨，赶紧购入油条，把握升值空间。”",
+    "effect": {}
+  },
+  {
+    "id": "sword_manual",
+    "name": "剑谱",
+    "description": "收藏品。书页被摊主用纸条封住，无法试阅。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "你翻开了这本小册子。\n\n一剑霜寒十四洲，两剑霜寒腊八粥，三剑霜寒小米粥，四剑霜寒海鲜粥，五剑霜寒皮蛋瘦肉粥，六剑霜寒精炖牛肉粥，七剑霜寒排骨菌菇粥，八剑霜寒山药蔬菜粥，九剑霜寒牛奶燕麦粥，十剑是检验真理的唯一标准。\n\n……有点饿了！",
+    "effect": {}
+  },
+  {
+    "id": "grilled_starch_sausage",
+    "name": "烤淀粉肠",
+    "description": "收藏品。色泽鲜艳，令人眼馋。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "如此美味，妙哉妙哉。再来一份！",
+    "effect": {}
+  },
+  {
+    "id": "yangchun_noodles",
+    "name": "一碗阳春面",
+    "description": "收藏品。清汤细面，江湖人走到哪都能吃到的一碗面。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "清汤，葱花，细面。简单清淡，好吃。吃完以后觉得前路还可以继续走。碳水就是如此美妙。",
+    "effect": {}
+  },
+  {
+    "id": "hidden_braised_duck_leg",
+    "name": "老板私藏的酱鸭腿",
+    "description": "收藏品。老板从灶台底下神秘兮兮地掏出来的，限量供应，每天只有两只。",
+    "consumable": false,
+    "collectible": true,
+    "purchase_text": "皮脆肉嫩，酱香浓郁。你啃了一口就知道为什么要藏着卖了。旁边三个江湖人同时转头看向你，眼神危险。",
+    "effect": {}
   }
 ]
