@@ -1044,7 +1044,11 @@ export async function summarizeGame(sessionId: string): Promise<string> {
   if (state.pendingRoll) lines.push(`待决定骰子：${state.pendingRoll.die}点`);
   if (state.pendingPassShop) {
     const current = getCell(chapter, state.pendingPassShop.currentShopPosition);
-    lines.push(`当前途经第${current.position}格【${current.title}】：可进店，或跳过后继续本次移动至第${state.pendingPassShop.destination}格；若后续还有商店会依次再次询问。`);
+    if (state.status === 'awaiting_pass_shop') {
+      lines.push(`当前途经第${current.position}格【${current.title}】：可进店，或跳过后继续本次移动至第${state.pendingPassShop.destination}格；若后续还有商店会依次再次询问。`);
+    } else if (state.status === 'awaiting_shop') {
+      lines.push(`【${current.title}】属于本次移动的途经停留；离店后将继续尚未走完的路程，目标仍为第${state.pendingPassShop.destination}格，途中若再遇商店会继续依次询问。`);
+    }
   }
   return lines.join('\n');
 }
