@@ -29,12 +29,15 @@ jobs:
       - name: Engine regression tests
         run: npm test
 
+      - name: Build production runtime
+        run: npm run build
+
       - name: Remote HTTP smoke test
         shell: bash
         run: |
           set -euo pipefail
 
-          MCP_TOKEN=ci-test-token PORT=3210 npm run start:http > /tmp/jianghu-http.log 2>&1 &
+          MCP_TOKEN=ci-test-token PORT=3210 npm run start:http:prod > /tmp/jianghu-http.log 2>&1 &
           SERVER_PID=$!
           trap 'kill "$SERVER_PID" 2>/dev/null || true; cat /tmp/jianghu-http.log || true' EXIT
 
