@@ -3,7 +3,7 @@ import { after, test } from 'node:test';
 import { rm } from 'node:fs/promises';
 import { gameAction, getGameState, newGame, roll, summarizeCollection } from '../src/engine/game.js';
 import { saveState } from '../src/engine/store.js';
-import { loadChapter } from '../src/engine/content.js';
+import { loadChapter, loadItems } from '../src/engine/content.js';
 
 const sessions = [
   'test_scene',
@@ -24,6 +24,7 @@ const sessions = [
   'test_jiangnan_sync',
   'test_collectible_gift',
   'test_shop_before_core',
+  'test_shiyi_lu',
 ];
 
 after(async () => {
@@ -522,7 +523,10 @@ test('Saibei interactive shop items are purchasable and purchase text/state are 
     action: 'buy',
     optionId: 'buy_ugly_fur_gloves',
   });
-  assert.equal(gloves.state.players.human.money, 28);
+  assert.equal(gloves.state.players.human.money, 38);
+  assert.equal(gloves.state.players.ai.money, 40);
+  assert.match(gloves.text, /拾遗录新增/);
+  assert.match(gloves.text, /拾遗伊始/);
   assert.equal(gloves.state.players.human.inventory.some((x) => x.itemId === 'ugly_fur_gloves'), true);
   assert.equal(gloves.state.players.human.wornItems.includes('ugly_fur_gloves'), true);
   assert.equal(gloves.state.status, 'awaiting_shop');
@@ -702,3 +706,82 @@ test('all collectibles can be gifted even without an explicit giftable flag', as
   assert.equal(gifted.state.players.ai.inventory.some((x) => x.itemId === 'jiangnan_plum_note'), true);
   assert.match(gifted.text, /送给了/);
 });
+
+test('拾遗录 tracks shared collection progress with asymmetric money and title milestones', async () => {
+  await newGame({
+    sessionId: 'test_shiyi_lu',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const items = await loadItems();
+  const collectibleIds = items.filter((item) => item.collectible).map((item) => item.id);
+  assert.equal(collectibleIds.length, 35);
+
+  async function prepare(before: number) {
+    const state = await getGameState('test_shiyi_lu');
+    state.players.human.money = 100;
+    state.players.ai.money = 100;
+    state.players.human.position = 4;
+    state.currentPlayer = 'human';
+    state.status = 'awaiting_shop';
+    state.pendingShop = { cellPosition: 4, player: 'human' };
+    state.collectionUnlocked = collectibleIds.filter((id) => id !== 'nuo_mask').slice(0, before);
+    await saveState(state);
+  }
+
+  await prepare(0);
+  const first = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
+  assert.equal(first.state.collectionUnlocked.length, 1);
+  assert.equal(first.state.players.human.money, 105);
+  assert.equal(first.state.players.ai.money, 110);
+  assert.match(first.text, /收藏达到1件/);
+  assert.match(first.text, /拾遗伊始/);
+
+  let summary = await summarizeCollection('test_shiyi_lu', 'human');
+  assert.match(summary, /【拾遗录】1 \/ 35/);
+  assert.match(summary, /当前称号：【拾遗伊始】/);
+
+  await prepare(4);
+  const five = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
+  assert.equal(five.state.collectionUnlocked.length, 5);
+  assert.equal(five.state.players.human.money, 95);
+  assert.equal(five.state.players.ai.money, 100);
+  assert.match(five.text, /小有所获/);
+  assert.doesNotMatch(five.text, /拾遗奖励/);
+
+  await prepare(9);
+  const ten = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
+  assert.equal(ten.state.players.human.money, 100);
+  assert.equal(ten.state.players.ai.money, 105);
+  assert.match(ten.text, /收藏达到10件/);
+
+  await prepare(14);
+  const fifteen = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
+  assert.equal(fifteen.state.players.human.money, 100);
+  assert.equal(fifteen.state.players.ai.money, 105);
+  assert.match(fifteen.text, /收藏达到15件/);
+  assert.match(fifteen.text, /兜里有宝/);
+
+  await prepare(24);
+  const twentyFive = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
+  assert.equal(twentyFive.state.players.human.money, 100);
+  assert.equal(twentyFive.state.players.ai.money, 105);
+  assert.match(twentyFive.text, /收藏达到25件/);
+  assert.match(twentyFive.text, /收藏名家/);
+
+  await prepare(34);
+  const full = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
+  assert.equal(full.state.collectionUnlocked.length, 35);
+  assert.equal(full.state.players.human.money, 95);
+  assert.equal(full.state.players.ai.money, 100);
+  assert.match(full.text, /拾遗录·全卷/);
+  assert.match(full.text, /最高成就解锁】跬步千里/);
+
+  summary = await summarizeCollection('test_shiyi_lu', 'human');
+  assert.match(summary, /【拾遗录】35 \/ 35/);
+  assert.match(summary, /最高成就：【跬步千里】/);
+});
+
