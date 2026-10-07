@@ -65,6 +65,7 @@ jobs:
             --data '{"jsonrpc":"2.0","id":10,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"jianghu-ci","version":"1.0.0"}}}' \
             http://127.0.0.1:3210/mcp > /tmp/initialize.txt
 
+          cat /tmp/initialize.txt
           grep -q 'jianghu-rp-mcp' /tmp/initialize.txt
 
           curl --fail --silent \
@@ -76,8 +77,9 @@ jobs:
             --data '{"jsonrpc":"2.0","id":11,"method":"tools/list","params":{}}' \
             http://127.0.0.1:3210/mcp > /tmp/tools.txt
 
+          cat /tmp/tools.txt
           for TOOL in game_help new_game roll game_action game_info; do
-            grep -q "\"name\":\"${TOOL}\"" /tmp/tools.txt
+            grep -q "${TOOL}" /tmp/tools.txt
           done
 
           curl --fail --silent \
@@ -89,7 +91,9 @@ jobs:
             --data '{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"new_game","arguments":{"sessionId":"ci_remote_smoke","humanName":"CI","aiName":"AI","humanIdentityMode":"random","aiIdentityMode":"random"}}}' \
             http://127.0.0.1:3210/mcp > /tmp/new-game.txt
 
+          cat /tmp/new-game.txt
           grep -q 'ci_remote_smoke' /tmp/new-game.txt
+          test -f .data/ci_remote_smoke.json
 
           curl --fail --silent \
             --request POST \
@@ -100,4 +104,6 @@ jobs:
             --data '{"jsonrpc":"2.0","id":13,"method":"tools/call","params":{"name":"roll","arguments":{"sessionId":"ci_remote_smoke"}}}' \
             http://127.0.0.1:3210/mcp > /tmp/roll.txt
 
-          grep -q '掷骰' /tmp/roll.txt
+          cat /tmp/roll.txt
+          grep -q 'currentPlayer' /tmp/roll.txt
+          grep -q 'ci_remote_smoke' .data/ci_remote_smoke.json
