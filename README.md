@@ -31,6 +31,7 @@
 - 章节完成后可通过 `start_next_chapter` 依次进入第二章与第三章
 - 第一章纪念收藏品「洛阳牡丹花牌」；第二章「塞北马铃」；第三章「姑苏梅花笺」
 - 本地 JSON 自动存档
+- 实验性 Remote MCP：同一套引擎可通过 Streamable HTTP 暴露到公网，供支持 remote MCP 的客户端调用
 
 ## 核心设计
 
@@ -125,19 +126,59 @@ game_action(action="start_next_chapter")
 - MCP TypeScript SDK v2 (`@modelcontextprotocol/server`)
 - Zod v4
 - stdio transport
+- Streamable HTTP transport（实验性 Remote MCP）
 
 ## 运行
 
+安装依赖：
+
 ```bash
 npm install
+```
+
+本地 stdio MCP（原有玩法）：
+
+```bash
+npm run start:stdio
+```
+
+也可继续使用原来的：
+
+```bash
 npm run dev
 ```
 
-用 MCP Inspector 调试：
+用 MCP Inspector 调试 stdio：
 
 ```bash
 npm run inspect
 ```
+
+### Remote MCP prototype
+
+`remote-mcp-dev` 分支新增 Streamable HTTP 入口，复用完全相同的 5 个 MCP tools 和游戏引擎。
+
+本地启动：
+
+```bash
+MCP_TOKEN=replace-with-a-long-random-token npm run start:http
+```
+
+默认监听 `0.0.0.0:3000`：
+
+- MCP endpoint：`/mcp`
+- health check：`/health`
+
+可用环境变量：
+
+- `PORT`：HTTP 端口，默认 `3000`
+- `HOST`：监听地址，默认 `0.0.0.0`
+- `MCP_TOKEN`：可选 Bearer token；部署到公网时建议设置
+- `JIANGHU_DATA_DIR`：可选存档目录；部署时应指向持久化磁盘
+
+远程客户端填写的授权 token 会以 `Authorization: Bearer <token>` 发送。本项目只把它作为一个轻量私用门禁，不实现 OAuth 登录流程。
+
+公网使用时 MCP 地址必须由部署平台提供 HTTPS，例如 `https://example.invalid/mcp`。当前 prototype 的目标是私人连接与小范围测试，不包含账号系统、多租户、数据库或高并发设计。
 
 ## 内容结构
 
