@@ -52,9 +52,19 @@ test('roleplay scene pauses the board until fixed resolution is completed', asyn
   assert.deepEqual(resolved.state.resolvedScenes, [3]);
   assert.match(resolved.text, /固定结算/);
 
-  const next = await roll('test_scene', () => 6); // AI skips resolved scene 3, then stops at core scene 6
-  assert.equal(next.state.status, 'awaiting_scene');
-  assert.equal(next.state.players.ai.position, 6);
+  const next = await roll('test_scene', () => 6); // AI skips resolved scene 3, reaches shop 4 before core scene 6
+  assert.equal(next.state.status, 'awaiting_pass_shop');
+  assert.equal(next.state.players.ai.position, 4);
+  assert.equal(next.state.pendingPassShop?.currentShopPosition, 4);
+
+  const aiContinued = await gameAction({
+    sessionId: 'test_scene',
+    action: 'continue_move',
+    player: 'ai',
+  });
+  assert.equal(aiContinued.state.status, 'awaiting_scene');
+  assert.equal(aiContinued.state.players.ai.position, 6);
+  assert.equal(aiContinued.state.pendingScene?.cellPosition, 6);
 
   await gameAction({ sessionId: 'test_scene', action: 'complete_scene' });
   const optionalSkipped = await roll('test_scene', () => 6); // human 3 -> 9; shop 4 is reached first
