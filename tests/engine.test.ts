@@ -106,7 +106,7 @@ test('function cell deducts money and adds the selected item', async () => {
     action: 'buy',
     optionId: 'buy_fast_boots',
   });
-  assert.equal(bought.state.players.human.money, 18);
+  assert.equal(bought.state.players.human.money, 33);
   assert.equal(bought.state.players.human.inventory.find((x) => x.itemId === 'fast_boots')?.count, 1);
   assert.equal(bought.state.status, 'awaiting_shop');
   assert.equal(bought.state.currentPlayer, 'human');
@@ -119,7 +119,7 @@ test('function cell deducts money and adds the selected item', async () => {
     action: 'buy',
     optionId: 'buy_lucky_coin',
   });
-  assert.equal(boughtAgain.state.players.human.money, 10);
+  assert.equal(boughtAgain.state.players.human.money, 25);
   assert.equal(boughtAgain.state.players.human.inventory.find((x) => x.itemId === 'lucky_coin')?.count, 1);
   assert.equal(boughtAgain.state.status, 'awaiting_shop');
 
@@ -260,7 +260,7 @@ test('interactive toys can be customized, used reciprocally, worn and gifted wit
     itemId: 'pig_spray',
     customText: '猫',
   });
-  assert.equal(customized.state.players.human.money, 27);
+  assert.equal(customized.state.players.human.money, 42);
   assert.equal(customized.state.players.human.inventory.find((x) => x.itemId === 'pig_spray')?.variant, '猫');
 
   const firstSpray = await gameAction({
@@ -313,7 +313,7 @@ test('blacksmith engraving permanently annotates an owned item', async () => {
     targetItemId: 'gold_buyao',
     customText: '同行千里',
   });
-  assert.equal(engraved.state.players.human.money, 27);
+  assert.equal(engraved.state.players.human.money, 42);
   assert.equal(engraved.state.players.human.inventory.find((x) => x.itemId === 'gold_buyao')?.engraving, '同行千里');
   assert.match(engraved.text, /不可撤销|永久刻字/);
 });
@@ -525,7 +525,7 @@ test('Saibei interactive shop items are purchasable and purchase text/state are 
     optionId: 'buy_ugly_fur_gloves',
   });
   assert.equal(gloves.state.players.human.money, 38);
-  assert.equal(gloves.state.players.ai.money, 40);
+  assert.equal(gloves.state.players.ai.money, 55);
   assert.match(gloves.text, /拾遗录新增/);
   assert.match(gloves.text, /拾遗伊始/);
   assert.equal(gloves.state.players.human.inventory.some((x) => x.itemId === 'ugly_fur_gloves'), true);
