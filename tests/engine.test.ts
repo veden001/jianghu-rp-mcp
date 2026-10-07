@@ -25,6 +25,7 @@ const sessions = [
   'test_collectible_gift',
   'test_shop_before_core',
   'test_shiyi_lu',
+  'test_unique_shop_stock',
 ];
 
 after(async () => {
@@ -783,5 +784,115 @@ test('拾遗录 tracks shared collection progress with asymmetric money and titl
   summary = await summarizeCollection('test_shiyi_lu', 'human');
   assert.match(summary, /【拾遗录】36 \/ 36/);
   assert.match(summary, /最高成就：【跬步千里】/);
+});
+
+test('functional shop items stay unlimited while interactive collectibles are globally unique', async () => {
+  await newGame({
+    sessionId: 'test_unique_shop_stock',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  let state = await getGameState('test_unique_shop_stock');
+  state.players.human.position = 4;
+  state.players.human.money = 100;
+  state.players.ai.money = 100;
+  state.currentPlayer = 'human';
+  state.status = 'awaiting_shop';
+  state.pendingShop = { cellPosition: 4, player: 'human' };
+  state.resolvedScenes = [3];
+  await saveState(state);
+
+  const boots1 = await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'buy',
+    player: 'human',
+    optionId: 'buy_fast_boots',
+  });
+  assert.equal(boots1.state.players.human.inventory.find((x) => x.itemId === 'fast_boots')?.count, 1);
+
+  const boots2 = await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'buy',
+    player: 'human',
+    optionId: 'buy_fast_boots',
+  });
+  assert.equal(boots2.state.players.human.inventory.find((x) => x.itemId === 'fast_boots')?.count, 2);
+
+  const mask = await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'buy',
+    player: 'human',
+    optionId: 'buy_nuo_mask',
+  });
+  assert.equal(mask.state.players.human.inventory.some((x) => x.itemId === 'nuo_mask'), true);
+  assert.match(mask.text, /拾遗录新增/);
+
+  await assert.rejects(
+    () => gameAction({
+      sessionId: 'test_unique_shop_stock',
+      action: 'buy',
+      player: 'human',
+      optionId: 'buy_nuo_mask',
+    }),
+    /已经被买走了/,
+  );
+
+  await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'buy',
+    player: 'human',
+    optionId: 'leave',
+  });
+
+  state = await getGameState('test_unique_shop_stock');
+  state.players.ai.position = 3;
+  state.currentPlayer = 'ai';
+  state.status = 'active';
+  state.pendingShop = undefined;
+  await saveState(state);
+
+  const aiLanded = await roll('test_unique_shop_stock', () => 1);
+  assert.equal(aiLanded.state.status, 'awaiting_shop');
+  assert.match(aiLanded.text, /【快行靴】12两/);
+  assert.match(aiLanded.text, /【傩面】已售出（互动型收藏品限量1件）/);
+
+  const aiBoots = await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'buy',
+    player: 'ai',
+    optionId: 'buy_fast_boots',
+  });
+  assert.equal(aiBoots.state.players.ai.inventory.find((x) => x.itemId === 'fast_boots')?.count, 1);
+
+  await assert.rejects(
+    () => gameAction({
+      sessionId: 'test_unique_shop_stock',
+      action: 'buy',
+      player: 'ai',
+      optionId: 'buy_nuo_mask',
+    }),
+    /已经被买走了/,
+  );
+
+  await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'buy',
+    player: 'ai',
+    optionId: 'leave',
+  });
+
+  const gifted = await gameAction({
+    sessionId: 'test_unique_shop_stock',
+    action: 'gift_item',
+    player: 'human',
+    targetPlayer: 'ai',
+    itemId: 'nuo_mask',
+  });
+  assert.equal(gifted.state.players.human.inventory.some((x) => x.itemId === 'nuo_mask'), false);
+  assert.equal(gifted.state.players.ai.inventory.some((x) => x.itemId === 'nuo_mask'), true);
+  assert.match(gifted.text, /送给了/);
 });
 
