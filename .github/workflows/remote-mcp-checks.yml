@@ -1,0 +1,58 @@
+name: Remote MCP prototype checks
+
+on:
+  push:
+    branches:
+      - remote-mcp-dev
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Engine regression tests
+        run: npm test
+
+      - name: Remote HTTP smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MCP_TOKEN=ci-test-token PORT=3210 npm run start:http > /tmp/jianghu-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true; cat /tmp/jianghu-http.log || true' EXIT
+
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3210/health > /tmp/health.json; then
+              break
+            fi
+            sleep 0.5
+          done
+
+          grep -q '"ok":true' /tmp/health.json
+          grep -q '"transport":"streamable-http"' /tmp/health.json
+
+          STATUS=$(curl --silent --output /tmp/unauthorized.json --write-out '%{http_code}' \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+            http://127.0.0.1:3210/mcp)
+
+          test "$STATUS" = "401"
+          grep -q '"Unauthorized"' /tmp/unauthorized.json
