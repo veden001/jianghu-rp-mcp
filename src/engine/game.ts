@@ -134,7 +134,7 @@ function makePlayer(id: PlayerId, name: string, identity: Identity): PlayerState
     id,
     name,
     identity,
-    money: 30,
+    money: 45,
     position: 1,
     finished: false,
     inventory: [],
@@ -641,7 +641,7 @@ export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promi
     `【${chapter.opening.title}】${chapter.opening.text}`,
     `人类玩家身份：${humanIdentity.name}｜${humanIdentity.description}`,
     'AI玩家身份已经生成，由AI玩家自行决定是否、何时向人类公开。',
-    '双方初始银两：30两。',
+    '双方初始银两：45两。',
     '身份本身不直接提供数值、道具或自动成功效果。玩家可自由补充角色经历、性格、关系与秘密，但不得修改当前场景既定事实或凭空获得直接优势。',
   ];
   if (setupPendingDisguises.length > 0) {
