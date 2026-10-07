@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
+    "start:stdio": "tsx src/index.ts",
+    "start:http": "tsx src/http.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "inspect": "npx @modelcontextprotocol/inspector npx tsx src/index.ts"
@@ -15,6 +17,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@modelcontextprotocol/node": "^2.1.1",
     "@modelcontextprotocol/server": "^2.3.0",
     "zod": "^4.0.0"
   },
