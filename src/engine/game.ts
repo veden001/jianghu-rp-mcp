@@ -80,8 +80,15 @@ function appendLog(state: GameState, message: string): void {
 function normalizeLoadedState(state: GameState): GameState {
   // Backward compatibility for v0.1.x saves.
   if (!Array.isArray(state.resolvedScenes)) state.resolvedScenes = [];
-  if (!Array.isArray(state.collectionUnlocked)) state.collectionUnlocked = [];
-  else state.collectionUnlocked = [...new Set(state.collectionUnlocked)];
+  if (!Array.isArray(state.collectionUnlocked)) {
+    // v0.3-dev 拾遗录 migration: old saves have no historical collection field.
+    // Seed it from items currently carried by either player; collectible filtering
+    // happens once item definitions are available.
+    state.collectionUnlocked = [...new Set([
+      ...state.players.human.inventory.map((entry) => entry.itemId),
+      ...state.players.ai.inventory.map((entry) => entry.itemId),
+    ])];
+  } else state.collectionUnlocked = [...new Set(state.collectionUnlocked)];
   for (const id of ['human', 'ai'] as PlayerId[]) {
     const player = state.players[id];
     if (!Array.isArray(player.wornItems)) player.wornItems = [];
@@ -185,10 +192,11 @@ function recordCollectibleAcquisition(
   if (!def?.collectible) return [];
   if (state.collectionUnlocked.includes(itemId)) return [];
 
-  const before = state.collectionUnlocked.length;
+  const collectibleIds = new Set(items.filter((item) => item.collectible).map((item) => item.id));
+  const before = state.collectionUnlocked.filter((id) => collectibleIds.has(id)).length;
   state.collectionUnlocked.push(itemId);
-  const after = state.collectionUnlocked.length;
-  const total = items.filter((item) => item.collectible).length;
+  const after = state.collectionUnlocked.filter((id) => collectibleIds.has(id)).length;
+  const total = collectibleIds.size;
   const lines = [
     `【拾遗录新增】收录【${def.name}】。`,
     `【拾遗录】${after} / ${total}`,
@@ -1137,8 +1145,9 @@ export async function summarizeGame(sessionId: string): Promise<string> {
   const state = normalizeLoadedState(await loadState(sessionId));
   const items = await loadItems();
   const chapter = await loadChapter(state.chapterId);
-  const totalCollectibles = items.filter((item) => item.collectible).length;
-  const unlockedCollectibles = state.collectionUnlocked.length;
+  const collectibleIds = new Set(items.filter((item) => item.collectible).map((item) => item.id));
+  const totalCollectibles = collectibleIds.size;
+  const unlockedCollectibles = state.collectionUnlocked.filter((id) => collectibleIds.has(id)).length;
   const title = collectionTitle(unlockedCollectibles, totalCollectibles);
   const lines = [
     `session_id: ${state.sessionId}`,
