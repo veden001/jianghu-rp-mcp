@@ -190,5 +190,6 @@ export interface GameState {
   setupPendingDisguises: PlayerId[];
   resolvedScenes: number[];
   lastInteractiveUse?: InteractiveUseRecord;
+  collectionUnlocked: string[];
   log: GameLogEntry[];
 }
