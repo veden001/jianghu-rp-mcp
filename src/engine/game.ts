@@ -19,6 +19,20 @@ const GAME_VERSION = '0.3.0-dev';
 const NEXT_CHAPTER: Record<string, string | undefined> = { zhongyuan: 'saibei', saibei: 'jiangnan', jiangnan: undefined };
 const UPCOMING_CHAPTER_NAME: Record<string, string | undefined> = {};
 
+const COLLECTION_MONEY_REWARDS: Array<[number, number]> = [
+  [1, 10],
+  [10, 5],
+  [15, 5],
+  [25, 5],
+];
+
+const COLLECTION_TITLE_MILESTONES: Array<[number, string]> = [
+  [1, '拾遗伊始'],
+  [5, '小有所获'],
+  [15, '兜里有宝'],
+  [25, '收藏名家'],
+];
+
 type Rng = (min: number, maxExclusive: number) => number;
 const defaultRng: Rng = (min, maxExclusive) => randomInt(min, maxExclusive);
 
@@ -66,6 +80,8 @@ function appendLog(state: GameState, message: string): void {
 function normalizeLoadedState(state: GameState): GameState {
   // Backward compatibility for v0.1.x saves.
   if (!Array.isArray(state.resolvedScenes)) state.resolvedScenes = [];
+  if (!Array.isArray(state.collectionUnlocked)) state.collectionUnlocked = [];
+  else state.collectionUnlocked = [...new Set(state.collectionUnlocked)];
   for (const id of ['human', 'ai'] as PlayerId[]) {
     const player = state.players[id];
     if (!Array.isArray(player.wornItems)) player.wornItems = [];
@@ -149,6 +165,55 @@ function itemCount(player: PlayerState, itemId: string): number {
   return player.inventory
     .filter((entry) => entry.itemId === itemId)
     .reduce((sum, entry) => sum + entry.count, 0);
+}
+
+function collectionTitle(count: number, total: number): string | undefined {
+  if (total > 0 && count >= total) return '跬步千里';
+  if (count >= 25) return '收藏名家';
+  if (count >= 15) return '兜里有宝';
+  if (count >= 5) return '小有所获';
+  if (count >= 1) return '拾遗伊始';
+  return undefined;
+}
+
+function recordCollectibleAcquisition(
+  state: GameState,
+  itemId: string,
+  items: ItemDefinition[],
+): string[] {
+  const def = items.find((item) => item.id === itemId);
+  if (!def?.collectible) return [];
+  if (state.collectionUnlocked.includes(itemId)) return [];
+
+  const before = state.collectionUnlocked.length;
+  state.collectionUnlocked.push(itemId);
+  const after = state.collectionUnlocked.length;
+  const total = items.filter((item) => item.collectible).length;
+  const lines = [
+    `【拾遗录新增】收录【${def.name}】。`,
+    `【拾遗录】${after} / ${total}`,
+  ];
+
+  for (const [milestone, reward] of COLLECTION_MONEY_REWARDS) {
+    if (before < milestone && after >= milestone) {
+      state.players.human.money += reward;
+      state.players.ai.money += reward;
+      lines.push(
+        `【拾遗奖励】收藏达到${milestone}件：两名玩家各获得${reward}两。`,
+        `当前银两：${state.players.human.name} ${state.players.human.money}两｜${state.players.ai.name} ${state.players.ai.money}两。`,
+      );
+    }
+  }
+
+  for (const [milestone, title] of COLLECTION_TITLE_MILESTONES) {
+    if (before < milestone && after >= milestone) lines.push(`【称号解锁】${title}`);
+  }
+
+  if (total > 0 && before < total && after >= total) {
+    lines.push('【拾遗录·全卷】三章行尽，所见所藏，皆已入录。', '【最高成就解锁】跬步千里');
+  }
+
+  return lines;
 }
 
 function singleItemEntry(player: PlayerState, itemId: string): InventoryEntry {
@@ -260,6 +325,7 @@ function sameSpaceHook(
 function applyEffect(
   player: PlayerState,
   effect: MechanicalEffect | undefined,
+  onItemAdded?: (itemId: string) => string[],
 ): { immediateMove: number; notes: string[] } {
   const notes: string[] = [];
   if (!effect) return { immediateMove: 0, notes };
@@ -275,6 +341,7 @@ function applyEffect(
   if (effect.add_item) {
     addItem(player, effect.add_item);
     notes.push(`获得道具 ${effect.add_item}`);
+    if (onItemAdded) notes.push(...onItemAdded(effect.add_item));
   }
   if (effect.clear_next_roll_penalty) {
     player.effects.nextRollDelta = Math.max(0, player.effects.nextRollDelta);
@@ -341,7 +408,11 @@ async function resolveLanding(
       advanceTurn(state, playerId);
       return out;
     }
-    const { immediateMove, notes } = applyEffect(player, cell.effect);
+    const { immediateMove, notes } = applyEffect(
+      player,
+      cell.effect,
+      (itemId) => recordCollectibleAcquisition(state, itemId, items),
+    );
     out.push(...notes);
     if (cell.effect.lose_random_item) {
       const lost = await removeRandomOrdinaryItem(player, items, rng);
@@ -363,7 +434,11 @@ async function resolveLanding(
       out.push(`【互动钩子｜可选】${cell.interaction_hook}`);
     }
     const effect = cell.type === 'rhythm' ? cell.effect : undefined;
-    const { immediateMove, notes } = applyEffect(player, effect);
+    const { immediateMove, notes } = applyEffect(
+      player,
+      effect,
+      (itemId) => recordCollectibleAcquisition(state, itemId, items),
+    );
     out.push(...notes);
     if (immediateMove > 0) {
       out.push(...(await movePlayer(state, playerId, immediateMove, chapter, items, rng, '节奏格移动')));
@@ -409,6 +484,7 @@ async function resolveMoveDestination(
       state.firstFinisher = playerId;
       addItem(player, chapter.collectible.item_id);
       out.push(`${player.name}率先抵达终点，获得章节收藏品。`);
+      out.push(...recordCollectibleAcquisition(state, chapter.collectible.item_id, items));
     }
 
     const other = otherPlayer(playerId);
@@ -538,6 +614,7 @@ export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promi
     },
     setupPendingDisguises,
     resolvedScenes: [],
+    collectionUnlocked: [],
     log: [],
   };
   appendLog(state, `新游戏开始：${chapter.name}`);
@@ -814,9 +891,14 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
         }
         lines.push(`获得道具【${def?.name ?? option.item_id}】。`);
         if (def?.purchase_text) lines.push(def.purchase_text);
+        lines.push(...recordCollectibleAcquisition(state, option.item_id, items));
       } else if (option.kind === 'effect') {
         lines.push(`${player.name}选择：${option.label}`, `银两剩余：${player.money}两。`);
-        const { immediateMove, notes } = applyEffect(player, option.effect);
+        const { immediateMove, notes } = applyEffect(
+        player,
+        option.effect,
+        (itemId) => recordCollectibleAcquisition(state, itemId, items),
+      );
         lines.push(...notes);
         if (immediateMove > 0) {
           // “立即前进”类服务会结束本次逛店，并以新的移动效果为准。
@@ -904,6 +986,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
           addItem(player, transformed.id);
           notes.push(`【${def.name}】已转为收藏品【${transformed.name}】`);
           if (transformed.purchase_text) notes.push(transformed.purchase_text);
+          notes.push(...recordCollectibleAcquisition(state, transformed.id, items));
         }
       }
       state.lastInteractiveUse = undefined;
@@ -1001,14 +1084,31 @@ export async function summarizeCollection(sessionId: string, playerId: PlayerId 
   const state = normalizeLoadedState(await loadState(sessionId));
   const items = await loadItems();
   const player = state.players[playerId];
+  const collectibleDefs = items.filter((item) => item.collectible);
+  const unlocked = new Set(state.collectionUnlocked);
+  const unlockedDefs = collectibleDefs.filter((item) => unlocked.has(item.id));
+  const title = collectionTitle(unlockedDefs.length, collectibleDefs.length);
+
+  const lines = [
+    `【拾遗录】${unlockedDefs.length} / ${collectibleDefs.length}`,
+    '两名玩家共享收录进度；任意一人首次获得某件收藏品，即永久点亮。重复获得不重复计数。',
+  ];
+  if (title) {
+    lines.push(unlockedDefs.length === collectibleDefs.length ? `最高成就：【${title}】` : `当前称号：【${title}】`);
+  }
+  if (unlockedDefs.length > 0) lines.push(`已收录：${unlockedDefs.map((item) => item.name).join('、')}`);
+  if (unlockedDefs.length < collectibleDefs.length) lines.push(`未收录：？？？ × ${collectibleDefs.length - unlockedDefs.length}`);
 
   const owned = player.inventory
     .map((entry) => ({ entry, def: items.find((item) => item.id === entry.itemId) }))
     .filter(({ def }) => Boolean(def?.collectible));
 
-  if (owned.length === 0) return `${player.name}当前还没有收藏品。`;
+  lines.push(`\n【${player.name}当前收藏】`);
+  if (owned.length === 0) {
+    lines.push('当前没有随身收藏品。');
+    return lines.join('\n');
+  }
 
-  const lines = [`【${player.name}的收藏品】`];
   for (const { entry, def } of owned) {
     if (!def) continue;
     const annotations: string[] = [];
@@ -1028,11 +1128,15 @@ export async function summarizeGame(sessionId: string): Promise<string> {
   const state = normalizeLoadedState(await loadState(sessionId));
   const items = await loadItems();
   const chapter = await loadChapter(state.chapterId);
+  const totalCollectibles = items.filter((item) => item.collectible).length;
+  const unlockedCollectibles = state.collectionUnlocked.length;
+  const title = collectionTitle(unlockedCollectibles, totalCollectibles);
   const lines = [
     `session_id: ${state.sessionId}`,
     `章节：${chapter.name}`,
     `状态：${state.status}`,
     `当前回合：${state.players[state.currentPlayer].name} (${state.currentPlayer})`,
+    `拾遗录：${unlockedCollectibles}/${totalCollectibles}${title ? `｜${unlockedCollectibles === totalCollectibles ? '最高成就' : '称号'}：【${title}】` : ''}`,
   ];
   for (const id of ['human', 'ai'] as PlayerId[]) {
     const p = state.players[id];
