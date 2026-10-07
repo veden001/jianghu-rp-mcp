@@ -1096,6 +1096,15 @@ export async function summarizeCollection(sessionId: string, playerId: PlayerId 
   if (title) {
     lines.push(unlockedDefs.length === collectibleDefs.length ? `最高成就：【${title}】` : `当前称号：【${title}】`);
   }
+  const nextMilestone = [
+    { count: 1, text: '双方各+10两；称号【拾遗伊始】' },
+    { count: 5, text: '称号【小有所获】' },
+    { count: 10, text: '双方各+5两' },
+    { count: 15, text: '双方各+5两；称号【兜里有宝】' },
+    { count: 25, text: '双方各+5两；称号【收藏名家】' },
+    { count: collectibleDefs.length, text: '全收集最高成就【跬步千里】' },
+  ].find((milestone) => unlockedDefs.length < milestone.count);
+  if (nextMilestone) lines.push(`下一阶段：${nextMilestone.count}件｜${nextMilestone.text}`);
   if (unlockedDefs.length > 0) lines.push(`已收录：${unlockedDefs.map((item) => item.name).join('、')}`);
   if (unlockedDefs.length < collectibleDefs.length) lines.push(`未收录：？？？ × ${collectibleDefs.length - unlockedDefs.length}`);
 
