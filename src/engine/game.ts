@@ -304,14 +304,21 @@ function formatShopOption(
   option: ShopCell['options'][number],
   index: number,
   items: ItemDefinition[],
+  state: GameState,
 ): string {
   const marker = String.fromCharCode(65 + index);
   if (option.kind === 'item' && option.item_id) {
     const def = items.find((entry) => entry.id === option.item_id);
     const name = def?.name ?? option.label;
+    const limitedCollectible = def?.collectible === true;
+    const soldOut = limitedCollectible && state.collectionUnlocked.includes(option.item_id);
+    if (soldOut) {
+      return `${marker}. 【${name}】已售出（互动型收藏品限量1件） [${option.id}]`;
+    }
     const price = option.cost > 0 ? `${option.cost}两` : '免费';
+    const stockNote = limitedCollectible ? '｜限量1件' : '';
     const description = def?.description?.trim();
-    return `${marker}. 【${name}】${price}${description ? `\n${description}` : ''} [${option.id}]`;
+    return `${marker}. 【${name}】${price}${stockNote}${description ? `\n${description}` : ''} [${option.id}]`;
   }
   return `${marker}. ${option.label} [${option.id}]`;
 }
@@ -402,7 +409,8 @@ async function resolveLanding(
     state.status = 'awaiting_shop';
     state.pendingShop = { cellPosition: cell.position, player: playerId };
     out.push(cell.text);
-    out.push(...cell.options.map((option, index) => formatShopOption(option, index, items)));
+    out.push(...cell.options.map((option, index) => formatShopOption(option, index, items, state)));
+    out.push('功能道具不限量；互动型收藏品全局限量1件，谁先买到就是谁的。想转给同行人，需要使用赠送。');
     return out;
   }
 
@@ -785,8 +793,8 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     const lines = [
       `${player.name}走进第${cell.position}格【${cell.title}】。`,
       cell.text,
-      ...cell.options.map((option, index) => formatShopOption(option, index, items)),
-      '本次进店可以连续购买多件商品；选择离开后继续尚未走完的路程。',
+      ...cell.options.map((option, index) => formatShopOption(option, index, items, state)),
+      '本次进店可以连续购买多件商品；功能道具不限量，互动型收藏品全局限量1件；选择离开后继续尚未走完的路程。',
     ];
     text = lines.join('\n\n');
   } else if (input.action === 'continue_move') {
@@ -878,6 +886,13 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
 
       text = lines.join('\n\n');
     } else {
+      if (option.kind === 'item' && option.item_id) {
+        const def = items.find((entry) => entry.id === option.item_id);
+        if (def?.collectible === true && state.collectionUnlocked.includes(option.item_id)) {
+          throw new Error(`【${def.name}】已经被买走了。互动型收藏品全局限量1件；如果想给同行人，请使用赠送。`);
+        }
+      }
+
       if (player.money < option.cost) throw new Error(`Not enough money. Need ${option.cost}, have ${player.money}.`);
 
       if (option.kind === 'engrave') {
