@@ -718,7 +718,7 @@ test('拾遗录 tracks shared collection progress with asymmetric money and titl
 
   const items = await loadItems();
   const collectibleIds = items.filter((item) => item.collectible).map((item) => item.id);
-  assert.equal(collectibleIds.length, 35);
+  assert.equal(collectibleIds.length, 36);
 
   async function prepare(before: number) {
     const state = await getGameState('test_shiyi_lu');
@@ -741,7 +741,7 @@ test('拾遗录 tracks shared collection progress with asymmetric money and titl
   assert.match(first.text, /拾遗伊始/);
 
   let summary = await summarizeCollection('test_shiyi_lu', 'human');
-  assert.match(summary, /【拾遗录】1 \/ 35/);
+  assert.match(summary, /【拾遗录】1 \/ 36/);
   assert.match(summary, /当前称号：【拾遗伊始】/);
 
   await prepare(4);
@@ -772,16 +772,16 @@ test('拾遗录 tracks shared collection progress with asymmetric money and titl
   assert.match(twentyFive.text, /收藏达到25件/);
   assert.match(twentyFive.text, /收藏名家/);
 
-  await prepare(34);
+  await prepare(35);
   const full = await gameAction({ sessionId: 'test_shiyi_lu', action: 'buy', optionId: 'buy_nuo_mask' });
-  assert.equal(full.state.collectionUnlocked.length, 35);
+  assert.equal(full.state.collectionUnlocked.length, 36);
   assert.equal(full.state.players.human.money, 95);
   assert.equal(full.state.players.ai.money, 100);
   assert.match(full.text, /拾遗录·全卷/);
   assert.match(full.text, /最高成就解锁】跬步千里/);
 
   summary = await summarizeCollection('test_shiyi_lu', 'human');
-  assert.match(summary, /【拾遗录】35 \/ 35/);
+  assert.match(summary, /【拾遗录】36 \/ 36/);
   assert.match(summary, /最高成就：【跬步千里】/);
 });
 
