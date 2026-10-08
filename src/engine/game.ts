@@ -80,6 +80,7 @@ function appendLog(state: GameState, message: string): void {
 function normalizeLoadedState(state: GameState): GameState {
   // Backward compatibility for v0.1.x saves.
   if (!Array.isArray(state.resolvedScenes)) state.resolvedScenes = [];
+  if (!Array.isArray(state.resolvedLandmarks)) state.resolvedLandmarks = [];
   if (!Array.isArray(state.collectionUnlocked)) {
     // v0.3-dev 拾遗录 migration: old saves have no historical collection field.
     // Seed it from items currently carried by either player; collectible filtering
@@ -252,21 +253,23 @@ function getCell(chapter: ChapterDefinition, position: number): Cell {
   return cell;
 }
 
-function firstUnresolvedCoreSceneBetween(
+function firstUnresolvedMandatoryStopBetween(
   state: GameState,
   chapter: ChapterDefinition,
   from: number,
   destination: number,
 ): number | undefined {
   return chapter.cells
-    .filter(
-      (cell) =>
-        cell.type === 'scene' &&
-        cell.scene_mode === 'core' &&
-        cell.position > from &&
-        cell.position <= destination &&
-        !state.resolvedScenes.includes(cell.position),
-    )
+    .filter((cell) => {
+      if (cell.position <= from || cell.position > destination) return false;
+      if (cell.type === 'scene') {
+        return cell.scene_mode === 'core' && !state.resolvedScenes.includes(cell.position);
+      }
+      if (cell.type === 'landmark') {
+        return cell.force_stop === true && !state.resolvedLandmarks.includes(cell.position);
+      }
+      return false;
+    })
     .map((cell) => cell.position)
     .sort((a, b) => a - b)[0];
 }
@@ -444,6 +447,17 @@ async function resolveLanding(
     return out;
   }
 
+  if (cell.type === 'landmark' && cell.force_stop) {
+    if (state.resolvedLandmarks.includes(cell.position)) {
+      out.push('这个关键地标已经在本章触发过，本次不重复播放主线文本。');
+    } else {
+      state.resolvedLandmarks.push(cell.position);
+      out.push(cell.text);
+    }
+    advanceTurn(state, playerId);
+    return out;
+  }
+
   if (cell.type === 'rhythm' || cell.type === 'landmark') {
     out.push(cell.text);
     if (cell.type === 'rhythm' && cell.interaction_hook) {
@@ -534,8 +548,8 @@ async function continueTravel(
   reason: string,
 ): Promise<string[]> {
   const player = state.players[playerId];
-  const coreStop = firstUnresolvedCoreSceneBetween(state, chapter, from, destination);
-  const travelEnd = coreStop ?? destination;
+  const mandatoryStop = firstUnresolvedMandatoryStopBetween(state, chapter, from, destination);
+  const travelEnd = mandatoryStop ?? destination;
 
   // 沿实际行进顺序处理途经商店。只展示当前真正走到的这一家，
   // 离店或跳过后再继续剩余路程，因此同一次移动可以依次经过多家商店。
@@ -563,20 +577,23 @@ async function continueTravel(
     ];
   }
 
-  // 核心场景仍然会截断本次移动，但只有真正走到它时才触发；
-  // 位于核心场景之前的商店不会再被跳过。
-  if (coreStop !== undefined) {
+  // 核心场景与强制剧情地标都会截断本次移动，但只有真正走到它们时才触发；
+  // 位于强制停留点之前的商店不会被跳过。
+  if (mandatoryStop !== undefined) {
+    const stopCell = getCell(chapter, mandatoryStop);
     state.pendingPassShop = undefined;
     return resolveMoveDestination(
       state,
       playerId,
       from,
-      coreStop,
+      mandatoryStop,
       chapter,
       items,
       rng,
       reason,
-      '途经尚未触发的核心场景，强制停留。',
+      stopCell.type === 'landmark'
+        ? '途经关键剧情地标，强制停留并自动播放。'
+        : '途经尚未触发的核心场景，强制停留。',
     );
   }
 
@@ -630,6 +647,7 @@ export async function newGame(input: NewGameInput, rng: Rng = defaultRng): Promi
     },
     setupPendingDisguises,
     resolvedScenes: [],
+    resolvedLandmarks: [],
     collectionUnlocked: [],
     log: [],
   };
@@ -833,6 +851,7 @@ export async function gameAction(input: ActionInput, rng: Rng = defaultRng): Pro
     state.pendingPassShop = undefined;
     state.firstFinisher = undefined;
     state.resolvedScenes = [];
+    state.resolvedLandmarks = [];
     state.lastInteractiveUse = undefined;
     for (const id of ['human', 'ai'] as PlayerId[]) {
       const player = state.players[id];
