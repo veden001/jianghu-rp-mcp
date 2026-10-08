@@ -16,6 +16,7 @@ const sessions = [
   'test_engrave',
   'test_chapter_transition',
   'test_saibei_scene',
+  'test_saibei_landmark',
   'test_saibei_finale',
   'test_pass_shop_multiple',
   'test_saibei_shop_items',
@@ -398,6 +399,41 @@ test('Saibei uses the same core/optional scene interception rules', async () => 
   assert.equal(stopped.state.pendingPassShop?.currentShopPosition, 4);
   assert.match(stopped.text, /北岸马市/);
 });
+
+test('White Wolf Old Fort force-stops, autoplays once, and consumes the remaining move', async () => {
+  await newGame({
+    sessionId: 'test_saibei_landmark',
+    humanIdentityMode: 'select',
+    humanIdentityId: 'commoner',
+    aiIdentityMode: 'select',
+    aiIdentityId: 'escort',
+  });
+
+  const state = await getGameState('test_saibei_landmark');
+  state.chapterId = 'saibei';
+  state.players.human.position = 17;
+  state.players.ai.position = 17;
+  state.currentPlayer = 'human';
+  state.resolvedScenes = [3, 11, 16];
+  state.resolvedLandmarks = [];
+  await saveState(state);
+
+  const forced = await roll('test_saibei_landmark', () => 6); // 17 -> 23, but landmark 18 must interrupt
+  assert.equal(forced.state.players.human.position, 18);
+  assert.equal(forced.state.status, 'active');
+  assert.equal(forced.state.currentPlayer, 'ai');
+  assert.deepEqual(forced.state.resolvedLandmarks, [18]);
+  assert.match(forced.text, /白狼旧堡/);
+  assert.match(forced.text, /照骨剑每一次看似偶然的“现身”/);
+  assert.match(forced.text, /剑之一道，终究只是人间事/);
+  assert.match(forced.text, /强制停留并自动播放/);
+
+  const repeated = await roll('test_saibei_landmark', () => 1); // AI lands on 18 after it was already played
+  assert.equal(repeated.state.players.ai.position, 18);
+  assert.doesNotMatch(repeated.text, /照骨剑每一次看似偶然的“现身”/);
+  assert.match(repeated.text, /已经在本章触发过/);
+});
+
 
 test('Saibei finale awards its collectible and points toward Jiangnan', async () => {
   await newGame({
