@@ -91,7 +91,7 @@ jobs:
             --header 'Content-Type: application/json' \
             --header 'Accept: application/json, text/event-stream' \
             --header 'MCP-Protocol-Version: 2025-11-25' \
-            --data '{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"new_game","arguments":{"sessionId":"ci_remote_smoke","humanName":"CI","aiName":"AI","humanIdentityMode":"random","aiIdentityMode":"random"}}}' \
+            --data '{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"new_game","arguments":{"sessionId":"ci_remote_smoke","humanName":"CI","aiName":"AI","humanIdentityMode":"select","humanIdentityId":"commoner","aiIdentityMode":"select","aiIdentityId":"escort"}}}' \
             http://127.0.0.1:3210/mcp > /tmp/new-game.txt
 
           cat /tmp/new-game.txt
