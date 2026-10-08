@@ -73,6 +73,7 @@ export interface NarrativeCell extends BaseCell {
   text: string;
   effect?: MechanicalEffect;
   interaction_hook?: string;
+  force_stop?: boolean;
 }
 
 export interface LightCell extends BaseCell {
@@ -189,6 +190,7 @@ export interface GameState {
   firstFinisher?: PlayerId;
   setupPendingDisguises: PlayerId[];
   resolvedScenes: number[];
+  resolvedLandmarks: number[];
   lastInteractiveUse?: InteractiveUseRecord;
   collectionUnlocked: string[];
   log: GameLogEntry[];
